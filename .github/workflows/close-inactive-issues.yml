@@ -1,0 +1,28 @@
+name: close inactive issues
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *" # every day at midnight
+
+jobs:
+  close-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only for delete-branch option
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 60
+          days-before-pr-stale: 14 # overrides days-before-stale for PRs only
+          days-before-close: 7
+          stale-issue-label: "stale"
+          stale-pr-label: "stale"
+          stale-issue-message: "This issue is stale because it has been open for 60 days with no activity."
+          close-issue-message: "This issue was closed because it has been inactive for 7 days since being marked as stale."
+          stale-pr-message: "This pull request is stale because it has been open for 14 days with no activity."
+          close-pr-message: "This pull request was closed because it has been inactive for 7 days since being marked as stale."
+          exempt-issue-labels: engg/security, engg/automation, engg/telemetry, engg/misc, engg/devops, engg/testability
+          operations-per-run: 100

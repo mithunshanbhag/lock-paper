@@ -1,0 +1,16 @@
+﻿@* @TODO: Replace the route later *@
+@page "/"
+@page "/page1"
+
+<PageTitle>Page1</PageTitle>
+
+<PageHeader BreadcrumbItems="@(
+                             [
+                                 new BreadcrumbItem("Home", "#"),
+                                 new BreadcrumbItem("Page1", null, true)
+                             ])"
+            ActionButtonDisabled="true"/>
+
+@code {
+
+}

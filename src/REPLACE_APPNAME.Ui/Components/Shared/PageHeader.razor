@@ -1,0 +1,50 @@
+<div class="pageHeader">
+    <MudStack Row="true">
+        <MudBreadcrumbs Items="@BreadcrumbItems"
+                        Class="pr-0"/>
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                       Size="Size.Small"
+                       Color="Color.Primary"
+                       OnClick="@(RefreshButtonClickHandler ?? (() => Task.CompletedTask))"/>
+    </MudStack>
+
+    @if (ActionButtonContent is not null)
+    {
+        @ActionButtonContent
+    }
+    else
+    {
+        <MudTooltip Text="@ActionButtonTooltipText"
+                    ShowOnFocus="true"
+                    ShowOnHover="true"
+                    Placement="Placement.Left"
+                    Disabled="@(string.IsNullOrWhiteSpace(ActionButtonTooltipText))">
+            <MudFab Color="Color.Primary"
+                    StartIcon="@ActionButtonIcon"
+                    OnClick="@(ActionButtonClickHandler ?? (() => Task.CompletedTask))"
+                    @bind-hidden="@ActionButtonHidden"
+                    Disabled="@(ActionButtonDisabled || ActionButtonClickHandler == null)"/>
+        </MudTooltip>
+    }
+</div>
+
+
+@code {
+
+    [Parameter] public required List<BreadcrumbItem> BreadcrumbItems { get; set; }
+
+    [Parameter] public bool ActionButtonHidden { get; set; }
+
+    [Parameter] public bool ActionButtonDisabled { get; set; }
+
+    [Parameter] public Func<Task>? ActionButtonClickHandler { get; set; }
+
+    [Parameter] public Func<Task>? RefreshButtonClickHandler { get; set; }
+
+    [Parameter] public string? ActionButtonIcon { get; set; } = Icons.Material.Filled.Add;
+
+    [Parameter] public string? ActionButtonTooltipText { get; set; }
+
+    [Parameter] public RenderFragment? ActionButtonContent { get; set; }
+
+}

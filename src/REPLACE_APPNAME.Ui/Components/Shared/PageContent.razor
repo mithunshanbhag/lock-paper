@@ -1,0 +1,9 @@
+﻿<div class="pageContent">
+    @ChildContent
+</div>
+
+@code{
+
+    [Parameter] public required RenderFragment ChildContent { get; set; }
+
+}

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "csharp-ls": {
+      "version": "0.22.0",
+      "commands": [
+        "csharp-ls"
+      ],
+      "rollForward": false
+    },
+    "jetbrains.resharper.globaltools": {
+      "version": "2025.3.3",
+      "commands": [
+        "jb"
+      ],
+      "rollForward": false
+    }
+  }
+}

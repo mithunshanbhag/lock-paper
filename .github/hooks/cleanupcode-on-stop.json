@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "type": "command",
+        "windows": "pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ./.github/hooks/scripts/run-resharper-cleanup.ps1",
+        "linux": "pwsh -NoLogo -NoProfile -File ./.github/hooks/scripts/run-resharper-cleanup.ps1",
+        "osx": "pwsh -NoLogo -NoProfile -File ./.github/hooks/scripts/run-resharper-cleanup.ps1",
+        "cwd": ".",
+        "timeout": 1800
+      }
+    ]
+  }
+}
