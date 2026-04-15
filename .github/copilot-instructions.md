@@ -133,3 +133,7 @@ I prefer to host my apps and related infra on Azure using serverless/PaaS. This 
 ## DOCUMENTATION GUIDELINES
 
 - Please follow the guidelines in the `/.github/skills/documentation/SKILL.md` file when authoring documentation.
+
+## MISCELLANEOUS
+
+- Sometimes, we just want to capture feature requests, bug reports, future enhancements, or other brainstorming/ideation notes without having any detailed detailed specifications attached to it. For this purpose, we can use the `/.github/specs/future.md` file as a catch-all for any relevant information that may be useful for the project. This file needs to be created if it doesn't already exist.
