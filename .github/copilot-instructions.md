@@ -113,7 +113,7 @@ I prefer to host my apps and related infra on Azure using serverless/PaaS. This 
     /MyApp.Infrastructure
 
   /tests
-    /MyApp.Api.IntegrationTests
+    /MyApp.E2ETests
     /MyApp.Application.UnitTests
     /MyApp.Domain.UnitTests
     /MyApp.Infrastructure.IntegrationTests
@@ -136,4 +136,4 @@ I prefer to host my apps and related infra on Azure using serverless/PaaS. This 
 
 ## MISCELLANEOUS
 
-- Sometimes, we just want to capture feature requests, bug reports, future enhancements, or other brainstorming/ideation notes without having any detailed detailed specifications attached to it. For this purpose, we can use the `/.github/specs/future.md` file as a catch-all for any relevant information that may be useful for the project. This file needs to be created if it doesn't already exist.
+- Sometimes, we just want to capture feature requests, bug reports, future enhancements, or other brainstorming/ideation notes without having any detailed detailed specifications attached to it. For this purpose, we can use the `docs/specs/future.md` file as a catch-all for any relevant information that may be useful for the project. This file needs to be created if it doesn't already exist.
