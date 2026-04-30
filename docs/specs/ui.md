@@ -28,6 +28,7 @@ Required elements:
 - A lightweight logout affordance next to the app title, such as a green tick icon.
 - Primary action button.
 - A **Microsoft account** card showing the connected personal account label.
+- A **Wallpaper albums** card showing whether LockPaper found any matching OneDrive albums.
 - A single **Display summary** card showing every attached display together inside that card as colored rectangles with the display resolution shown inside each rectangle.
 - A **Last attempt** card with a lightweight success/failure or pending indicator.
 - A **Next attempt** card with the next scheduled attempt target or an honest scheduling note.
@@ -37,7 +38,7 @@ Required elements:
 The connected/disconnected screen should adapt to these situations instead of branching into more complex flows:
 
 - **Signed out** - show sign-in call to action.
-- **Album missing** - show instructions to create or rename the album.
+- **Album missing** - keep the connected layout visible, show a concise error, and explain how to create or rename a matching album.
 - **Album empty or ineligible** - explain that usable photos are required.
 - **Change in progress** - disable the primary button and show progress text.
 - **Last attempt failed** - show a concise error summary and let the user retry.
@@ -69,9 +70,11 @@ The connected/disconnected screen should adapt to these situations instead of br
 - Manual refresh should update the visible status immediately after completion.
 - Activating the connected-state title icon should open a confirmation dialog before log out.
 - Error messages should stay concise and user-facing.
+- If no matching albums are found, the screen should keep the account, wallpaper album, display summary, last attempt, and next attempt cards visible while explaining that wallpaper changes are paused.
 - V1 should not require a settings page to complete the basic experience.
 
 ## Mockup reference
 
 - Disconnected mockup: `docs/ui-mockups/LockPaperDisconnected/index.html`
 - Connected mockup: `docs/ui-mockups/LockPaperConnected/index.html`
+- No albums found mockup: `docs/ui-mockups/NoAlbumsFound/index.html`

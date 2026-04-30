@@ -1,4 +1,5 @@
 using LockPaper.Ui.Services.Implementations;
+using LockPaper.Ui.Constants;
 using Microsoft.Extensions.Logging;
 
 namespace LockPaper.Ui;
@@ -26,6 +27,11 @@ public static class MauiProgram
         builder.Services.AddSingleton<IDeviceDisplayService, DeviceDisplayService>();
         builder.Services.AddSingleton<IUiDispatcher, MauiUiDispatcher>();
         builder.Services.AddSingleton<IOneDriveAuthenticationService, OneDriveAuthenticationService>();
+        builder.Services.AddSingleton(new HttpClient
+        {
+            BaseAddress = new Uri(OneDriveAlbumDiscoveryConstants.GraphBaseAddress),
+        });
+        builder.Services.AddSingleton<IOneDriveAlbumDiscoveryService, OneDriveAlbumDiscoveryService>();
         builder.Services.AddSingleton<MainPageModel>();
         builder.Services.AddSingleton<MainPage>();
 

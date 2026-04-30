@@ -9,7 +9,7 @@ LockPaper is a minimal **.NET MAUI** app for **Windows** and **Android** that ch
 
 ![LockPaper preview placeholder](https://placehold.co/1200x760/png?text=LockPaper+UI+Preview)
 
-> Preview placeholder: app screenshots have not been captured yet. For current UI references, see the [connected mockup](docs/ui-mockups/LockPaperConnected/index.html) and [disconnected mockup](docs/ui-mockups/LockPaperDisconnected/index.html).
+> Preview placeholder: app screenshots have not been captured yet. For current UI references, see the [connected mockup](docs/ui-mockups/LockPaperConnected/index.html), the [no albums found mockup](docs/ui-mockups/NoAlbumsFound/index.html), and the [disconnected mockup](docs/ui-mockups/LockPaperDisconnected/index.html).
 
 ## ✨ Current scope
 
@@ -72,12 +72,12 @@ The current repository now supports the OneDrive connectivity slice for the v1 s
 
 1. start from the signed-out state,
 2. sign in with a personal Microsoft account,
-3. confirm that the app recognizes the connected account,
-4. refresh the OneDrive session from the primary action button, and
-5. review the connected-state cards for the Microsoft account, current display summary, last attempt, and next attempt placeholders, and
+3. let the app check OneDrive for matching wallpaper albums immediately after the connection succeeds,
+4. confirm that the connected state shows the Microsoft account, wallpaper album status, current display summary, and honest attempt placeholders,
+5. review the inline error guidance when no matching OneDrive albums are found, and
 6. log out from the title-bar affordance.
 
-Album discovery, wallpaper rotation, and background scheduling are still pending. The connected state now surfaces account and display context plus honest attempt placeholders while the wallpaper-change workflow is still being implemented.
+Wallpaper rotation and background scheduling are still pending. The current UI slice now validates matching OneDrive albums after sign-in, surfaces a dedicated album-status card, and pauses the wallpaper flow with explicit guidance when no matching albums are available.
 
 ## 🛠️ Build and run locally
 

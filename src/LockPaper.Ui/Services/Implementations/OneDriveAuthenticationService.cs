@@ -21,10 +21,7 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
 
         try
         {
-            var authenticationResult = await _publicClientApplication
-                .AcquireTokenSilent(OneDriveAuthenticationConstants.Scopes, account)
-                .ExecuteAsync(cancellationToken)
-                .ConfigureAwait(false);
+            var authenticationResult = await AcquireTokenSilentAsync(account, cancellationToken).ConfigureAwait(false);
 
             var accountLabel = GetAccountLabel(authenticationResult.Account ?? account);
             logger.LogInformation("Cached OneDrive session is valid for account {AccountLabel}.", accountLabel);
@@ -88,6 +85,29 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
         }
     }
 
+    public async Task<string> GetMicrosoftGraphAccessTokenAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Acquiring a Microsoft Graph access token for OneDrive album discovery.");
+        var account = await GetPrimaryAccountAsync().ConfigureAwait(false)
+            ?? throw new InvalidOperationException("LockPaper needs a signed-in Microsoft account before it can read your OneDrive albums.");
+
+        try
+        {
+            var authenticationResult = await AcquireTokenSilentAsync(account, cancellationToken).ConfigureAwait(false);
+            return authenticationResult.AccessToken;
+        }
+        catch (MsalUiRequiredException exception)
+        {
+            logger.LogInformation(exception, "OneDrive album discovery needs the user to sign in again.");
+            throw new InvalidOperationException("LockPaper needs you to sign in again before it can read your OneDrive albums.", exception);
+        }
+        catch (MsalException exception)
+        {
+            logger.LogWarning(exception, "LockPaper could not acquire a Microsoft Graph access token for album discovery.");
+            throw new InvalidOperationException("LockPaper couldn't get a valid OneDrive access token for album discovery.", exception);
+        }
+    }
+
     public async Task<OneDriveConnectionOperationResult> SignOutAsync(CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Starting OneDrive sign-out.");
@@ -117,6 +137,11 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
         var accounts = await _publicClientApplication.GetAccountsAsync().ConfigureAwait(false);
         return accounts.FirstOrDefault();
     }
+
+    private Task<AuthenticationResult> AcquireTokenSilentAsync(IAccount account, CancellationToken cancellationToken) =>
+        _publicClientApplication
+            .AcquireTokenSilent(OneDriveAuthenticationConstants.Scopes, account)
+            .ExecuteAsync(cancellationToken);
 
     private static string GetAccountLabel(IAccount account) =>
         string.IsNullOrWhiteSpace(account.Username)

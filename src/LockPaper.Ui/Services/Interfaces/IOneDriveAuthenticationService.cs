@@ -22,6 +22,14 @@ public interface IOneDriveAuthenticationService
     Task<OneDriveConnectionOperationResult> SignInAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a Microsoft Graph access token for the signed-in OneDrive account.
+    /// </summary>
+    /// <param name="cancellationToken">A token that can cancel the operation.</param>
+    /// <returns>The access token for Microsoft Graph requests.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the current device does not have a usable signed-in OneDrive session.</exception>
+    Task<string> GetMicrosoftGraphAccessTokenAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Clears any cached OneDrive account session for the device.
     /// </summary>
     /// <param name="cancellationToken">A token that can cancel the operation.</param>

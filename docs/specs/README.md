@@ -20,6 +20,12 @@ Source mockup: `docs/ui-mockups/LockPaperDisconnected/index.html`
 
 Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
 
+### No albums found state
+
+This connected-state error mockup shows how LockPaper should explain that wallpaper rotation is paused until a matching OneDrive album exists.
+
+Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
+
 ## Product goals
 
 - Make lock-screen rotation from OneDrive feel automatic and low-maintenance.
@@ -38,6 +44,7 @@ Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
 - Best-effort hourly background refresh.
 - A minimal in-app screen with:
   - current connection/status summary, including the signed-in Microsoft account
+  - a wallpaper album status card that shows whether any matching albums are ready
   - one display summary card that keeps every detected screen, monitor, or display grouped together as simple rectangles with each display's resolution shown inside its rectangle
   - a manual "change wallpaper now" action
   - basic success and error feedback
@@ -54,16 +61,17 @@ Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
 ## Primary user flow
 
 1. The user installs LockPaper and signs in with a personal Microsoft account.
-2. LockPaper scans OneDrive for albums named `lockpaper`, `lock-paper`, or `lock paper`, ignoring case.
-3. If one matching album exists, LockPaper uses it. If multiple matching albums exist, LockPaper randomly selects one matching album for the current wallpaper change cycle.
-4. LockPaper reads the current device resolution and orientation.
-5. LockPaper filters album photos to prefer the matching orientation:
+2. LockPaper immediately scans OneDrive for albums named `lockpaper`, `lock-paper`, or `lock paper`, ignoring case.
+3. If no matching albums exist, LockPaper keeps the account connected, shows a clear error, and pauses wallpaper rotation until a matching album is available.
+4. If one matching album exists, LockPaper uses it. If multiple matching albums exist, LockPaper randomly selects one matching album for the current wallpaper change cycle.
+5. LockPaper reads the current device resolution and orientation.
+6. LockPaper filters album photos to prefer the matching orientation:
    - portrait-first for portrait devices
    - landscape-first for landscape devices
-6. If matching-orientation photos exist, LockPaper randomly selects one of them.
-7. If no photos match the device orientation, LockPaper randomly selects any photo from the chosen album.
-8. LockPaper applies the photo to the lock screen.
-9. LockPaper repeats the process on a best-effort hourly cadence and also when the user taps the manual change button.
+7. If matching-orientation photos exist, LockPaper randomly selects one of them.
+8. If no photos match the device orientation, LockPaper randomly selects any photo from the chosen album.
+9. LockPaper applies the photo to the lock screen.
+10. LockPaper repeats the process on a best-effort hourly cadence and also when the user taps the manual change button.
 
 ## Functional requirements
 
@@ -77,6 +85,7 @@ Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
 
 - The app must search for a OneDrive album whose name equals `lockpaper`, `lock-paper`, or `lock paper`, case-insensitively.
 - The app must treat the album name match as an exact text match after case normalization.
+- The app must try to read the user's albums as soon as the OneDrive connection becomes available and whenever the connected state is refreshed.
 - If no matching album exists, the app must surface a clear status message and must not attempt wallpaper rotation until a matching album is available.
 - If multiple matching albums exist, the app must randomly choose one matching album when running a wallpaper change cycle.
 
@@ -110,6 +119,7 @@ Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
 - The main screen must expose a single prominent action to change the wallpaper immediately.
 - The main screen must show basic status, including:
   - sign-in state through a Microsoft account card
+  - wallpaper album state through a dedicated status card
   - a single display summary card for the attached screen or monitors, using simple colored rectangles with the resolution shown inside each display rectangle
   - whether a matching album was found
   - the last change attempt result
@@ -127,6 +137,7 @@ Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
   - manual change in progress
   - last change succeeded
   - last change failed
+- When no matching album exists, the UI should explain that the user can create or rename an album to `lockpaper`, `lock-paper`, or `lock paper`.
 - The app should provide user-friendly failure messages for connectivity, permission, and platform capability issues.
 
 ## Assumptions and constraints

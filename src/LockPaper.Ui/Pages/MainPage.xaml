@@ -70,19 +70,28 @@
                            Style="{StaticResource ConnectedFeedbackLabelStyle}"
                            IsVisible="{Binding ShowFeedback}" />
 
-                    <Border Style="{StaticResource StatusCardStyle}">
-                        <VerticalStackLayout Spacing="8">
-                            <Label Text="Microsoft account"
-                                   Style="{StaticResource SectionLabelStyle}" />
-                            <Label Text="{Binding AccountStatusText}"
-                                    Style="{StaticResource CardValueLabelStyle}" />
-                        </VerticalStackLayout>
-                    </Border>
-
-                    <Border Style="{StaticResource StatusCardStyle}">
-                        <VerticalStackLayout Spacing="12">
-                            <Label Text="Display summary"
+                     <Border Style="{StaticResource StatusCardStyle}">
+                         <VerticalStackLayout Spacing="8">
+                             <Label Text="Microsoft account"
                                     Style="{StaticResource SectionLabelStyle}" />
+                             <Label Text="{Binding AccountStatusText}"
+                                     Style="{StaticResource CardValueLabelStyle}" />
+                         </VerticalStackLayout>
+                     </Border>
+
+                     <Border Style="{StaticResource StatusCardStyle}">
+                         <VerticalStackLayout Spacing="8">
+                             <Label Text="Wallpaper albums"
+                                    Style="{StaticResource SectionLabelStyle}" />
+                             <Label Text="{Binding AlbumStatusText}"
+                                    Style="{StaticResource CardValueLabelStyle}" />
+                         </VerticalStackLayout>
+                     </Border>
+
+                     <Border Style="{StaticResource StatusCardStyle}">
+                         <VerticalStackLayout Spacing="12">
+                             <Label Text="Display summary"
+                                     Style="{StaticResource SectionLabelStyle}" />
                             <Label Text="{Binding DisplaySummaryText}"
                                    Style="{StaticResource CardSummaryLabelStyle}"
                                    IsVisible="{Binding ShowDisplaySummaryText}" />

@@ -1,5 +1,5 @@
-using LockPaper.Ui.PageModels;
 using LockPaper.Ui.Models;
+using LockPaper.Ui.PageModels;
 using LockPaper.Ui.Services.Interfaces;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -15,6 +15,7 @@ public class MainPageModelTests
         var dispatcher = new FakeUiDispatcher();
         var model = new MainPageModel(
             new FakeOneDriveAuthenticationService(),
+            new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
@@ -26,6 +27,7 @@ public class MainPageModelTests
         Assert.False(model.ShowConnectedLayout);
         Assert.False(model.ShowFeedback);
         Assert.Equal(string.Empty, model.AccountStatusText);
+        Assert.Equal(string.Empty, model.AlbumStatusText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.Equal(string.Empty, model.LastAttemptText);
         Assert.Equal(string.Empty, model.NextAttemptText);
@@ -41,6 +43,7 @@ public class MainPageModelTests
             {
                 CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
             },
+            new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
@@ -54,6 +57,7 @@ public class MainPageModelTests
         Assert.True(model.ShowConnectedLayout);
         Assert.False(model.ShowFeedback);
         Assert.Equal("family@example.com", model.AccountStatusText);
+        Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplaySummaryText);
         Assert.Equal("No wallpaper change has run yet.", model.LastAttemptText);
@@ -69,6 +73,7 @@ public class MainPageModelTests
         var dispatcher = new FakeUiDispatcher();
         var model = new MainPageModel(
             new FakeOneDriveAuthenticationService(),
+            new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
@@ -79,6 +84,7 @@ public class MainPageModelTests
         Assert.True(model.ShowConnectedLayout);
         Assert.False(model.ShowSignedOutLayout);
         Assert.Equal("family@example.com", model.AccountStatusText);
+        Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplaySummaryText);
         Assert.Equal(2, dispatcher.DispatchCount);
@@ -96,6 +102,7 @@ public class MainPageModelTests
             {
                 CurrentState = OneDriveConnectionState.CreateReauthenticationRequired("family@example.com"),
             },
+            new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
             new FakeUiDispatcher(),
             NullLogger<MainPageModel>.Instance);
@@ -106,6 +113,7 @@ public class MainPageModelTests
         Assert.True(model.ShowConnectedLayout);
         Assert.True(model.ShowFeedback);
         Assert.Contains("sign in again", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Reconnect to check matching albums.", model.AlbumStatusText);
         Assert.Equal("Paused until OneDrive is reconnected.", model.LastAttemptText);
         Assert.Equal("Will resume after you sign in again.", model.NextAttemptText);
     }
@@ -119,6 +127,7 @@ public class MainPageModelTests
             {
                 SignInResult = OneDriveConnectionOperationResult.Cancelled(OneDriveConnectionState.CreateSignedOut()),
             },
+            new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
@@ -131,6 +140,7 @@ public class MainPageModelTests
         Assert.False(model.IsLogoutVisible);
         Assert.False(model.ShowConnectedLayout);
         Assert.Equal("Connect to OneDrive", model.PrimaryActionText);
+        Assert.Equal(string.Empty, model.AlbumStatusText);
         Assert.Equal(2, dispatcher.DispatchCount);
     }
 
@@ -145,6 +155,7 @@ public class MainPageModelTests
                     "invalid_request",
                     "The provided value for the input parameter 'redirect_uri' is not valid."),
             },
+            new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
             new FakeUiDispatcher(),
             NullLogger<MainPageModel>.Instance);
@@ -154,6 +165,33 @@ public class MainPageModelTests
         Assert.True(model.ShowFeedback);
         Assert.Contains("desktop redirect URI", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("http://localhost", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PrimaryActionCommand_WhenNoMatchingAlbumsExist_ShouldShowAlbumGuidance()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService(),
+            new FakeOneDriveAlbumDiscoveryService
+            {
+                DiscoveryResult = OneDriveAlbumDiscoveryResult.NotFound(),
+            },
+            new FakeDeviceDisplayService(),
+            dispatcher,
+            NullLogger<MainPageModel>.Instance);
+
+        await model.PrimaryActionCommand.ExecuteAsync(null);
+
+        Assert.True(model.ShowConnectedLayout);
+        Assert.False(model.ShowSignedOutLayout);
+        Assert.True(model.ShowFeedback);
+        Assert.Equal("No matching albums found.", model.AlbumStatusText);
+        Assert.Contains("Create or rename an album", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("lockpaper", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Waiting for a matching OneDrive album.", model.LastAttemptText);
+        Assert.Equal("Will resume after a matching album is available.", model.NextAttemptText);
+        Assert.Equal(2, dispatcher.DispatchCount);
     }
 
     #endregion
@@ -169,7 +207,12 @@ public class MainPageModelTests
             CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
             SignOutResult = OneDriveConnectionOperationResult.Succeeded(OneDriveConnectionState.CreateSignedOut()),
         };
-        var model = new MainPageModel(service, new FakeDeviceDisplayService(), dispatcher, NullLogger<MainPageModel>.Instance);
+        var model = new MainPageModel(
+            service,
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService(),
+            dispatcher,
+            NullLogger<MainPageModel>.Instance);
 
         await model.InitializeAsync();
         await model.LogOutAsync();
@@ -180,6 +223,7 @@ public class MainPageModelTests
         Assert.True(model.ShowSignedOutLayout);
         Assert.False(model.ShowConnectedLayout);
         Assert.Equal(string.Empty, model.AccountStatusText);
+        Assert.Equal(string.Empty, model.AlbumStatusText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.Equal(string.Empty, model.LastAttemptText);
         Assert.Equal(string.Empty, model.NextAttemptText);
@@ -188,7 +232,7 @@ public class MainPageModelTests
     }
 
     [Fact]
-    public async Task InitializeAsync_WhenMultipleDisplaysDetected_ShouldShowDisplayCountAndPreviewCards()
+    public async Task InitializeAsync_WhenMultipleDisplaysDetected_ShouldShowDisplayPreviewCards()
     {
         var dispatcher = new FakeUiDispatcher();
         var model = new MainPageModel(
@@ -196,6 +240,7 @@ public class MainPageModelTests
             {
                 CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
             },
+            new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService
             {
                 Displays =
@@ -221,6 +266,7 @@ public class MainPageModelTests
 
         await model.InitializeAsync();
 
+        Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplaySummaryText);
         Assert.Equal(2, model.DisplayPreviews.Count);
@@ -244,14 +290,28 @@ public class MainPageModelTests
         public OneDriveConnectionOperationResult SignOutResult { get; set; } =
             OneDriveConnectionOperationResult.Succeeded(OneDriveConnectionState.CreateSignedOut());
 
+        public string AccessToken { get; set; } = "fake-token";
+
         public Task<OneDriveConnectionState> GetCurrentConnectionStateAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(CurrentState);
+
+        public Task<string> GetMicrosoftGraphAccessTokenAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(AccessToken);
 
         public Task<OneDriveConnectionOperationResult> SignInAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(SignInResult);
 
         public Task<OneDriveConnectionOperationResult> SignOutAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(SignOutResult);
+    }
+
+    private sealed class FakeOneDriveAlbumDiscoveryService : IOneDriveAlbumDiscoveryService
+    {
+        public OneDriveAlbumDiscoveryResult DiscoveryResult { get; set; } =
+            OneDriveAlbumDiscoveryResult.Succeeded(["lockpaper"]);
+
+        public Task<OneDriveAlbumDiscoveryResult> GetMatchingAlbumsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(DiscoveryResult);
     }
 
     private sealed class FakeDeviceDisplayService : IDeviceDisplayService
