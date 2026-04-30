@@ -11,3 +11,4 @@
 - Windows OneDrive sign-in follows the non-broker MAUI desktop pattern and uses the redirect URI `http://localhost`, which must be registered under the Azure app's Mobile and desktop applications platform.
 - Personal-account OneDrive sign-in also depends on the Azure app registration supporting personal Microsoft accounts, allowing public client flows, and having Microsoft Graph delegated permission `Files.Read`.
 - The connected-state screen now checks Microsoft Graph OneDrive album bundles through `src/LockPaper.Ui\Services\Implementations\OneDriveAlbumDiscoveryService.cs` and surfaces a dedicated wallpaper-albums card plus inline guidance when no matching albums are found.
+- `src/LockPaper.Ui\PageModels\MainPageModel.cs` now applies the connected layout as soon as MSAL sign-in succeeds and only fills in the album card afterward, so slow or failing OneDrive album discovery no longer leaves the UI stuck on `Connecting to OneDrive...`.

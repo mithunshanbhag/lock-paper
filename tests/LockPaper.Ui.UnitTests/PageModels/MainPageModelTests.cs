@@ -64,7 +64,7 @@ public class MainPageModelTests
         Assert.Equal("Waiting for wallpaper scheduling.", model.NextAttemptText);
         Assert.Single(model.DisplayPreviews);
         Assert.Equal("1080 x 1920", model.DisplayPreviews[0].ResolutionText);
-        Assert.Equal(3, dispatcher.DispatchCount);
+        Assert.Equal(2, dispatcher.DispatchCount);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class MainPageModelTests
         Assert.Equal("family@example.com", model.AccountStatusText);
         Assert.Equal("Checking matching albums...", model.AlbumStatusText);
         Assert.False(model.ShowFeedback);
-        Assert.Equal(3, dispatcher.DispatchCount);
+        Assert.Equal(2, dispatcher.DispatchCount);
 
         albumDiscoveryCompletionSource.SetResult(OneDriveAlbumDiscoveryResult.Succeeded(["lockpaper"]));
 
@@ -176,7 +176,7 @@ public class MainPageModelTests
         Assert.False(model.ShowConnectedLayout);
         Assert.Equal("Connect to OneDrive", model.PrimaryActionText);
         Assert.Equal(string.Empty, model.AlbumStatusText);
-        Assert.Equal(3, dispatcher.DispatchCount);
+        Assert.Equal(2, dispatcher.DispatchCount);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class MainPageModelTests
         Assert.Contains("lockpaper", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Waiting for a matching OneDrive album.", model.LastAttemptText);
         Assert.Equal("Will resume after a matching album is available.", model.NextAttemptText);
-        Assert.Equal(2, dispatcher.DispatchCount);
+        Assert.Equal(3, dispatcher.DispatchCount);
     }
 
     #endregion
@@ -263,7 +263,7 @@ public class MainPageModelTests
         Assert.Equal(string.Empty, model.LastAttemptText);
         Assert.Equal(string.Empty, model.NextAttemptText);
         Assert.Empty(model.DisplayPreviews);
-        Assert.Equal(2, dispatcher.DispatchCount);
+        Assert.Equal(3, dispatcher.DispatchCount);
     }
 
     [Fact]
