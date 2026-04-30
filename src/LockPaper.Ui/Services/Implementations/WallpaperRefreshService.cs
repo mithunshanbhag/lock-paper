@@ -17,6 +17,7 @@ public sealed class WallpaperRefreshService(
     public async Task<WallpaperRefreshResult> RefreshAsync(CancellationToken cancellationToken = default)
     {
         var attemptedAtLocal = DateTimeOffset.Now;
+        var matchingAlbumCount = 0;
 
         try
         {
@@ -27,9 +28,19 @@ public sealed class WallpaperRefreshService(
                 return WallpaperRefreshResult.Failed(attemptedAtLocal, 0, "LockPaper couldn't read the current display details.");
             }
 
-            var matchingAlbums = await oneDriveWallpaperSourceService
-                .GetMatchingAlbumsAsync(cancellationToken)
-                .ConfigureAwait(false);
+            IReadOnlyList<OneDriveWallpaperAlbum> matchingAlbums;
+            try
+            {
+                matchingAlbums = await oneDriveWallpaperSourceService
+                    .GetMatchingAlbumsAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (InvalidOperationException exception)
+            {
+                return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+            }
+
+            matchingAlbumCount = matchingAlbums.Count;
             if (matchingAlbums.Count == 0)
             {
                 return WallpaperRefreshResult.NoMatchingAlbums(attemptedAtLocal);
@@ -37,48 +48,66 @@ public sealed class WallpaperRefreshService(
 
             foreach (var album in ShuffleAlbums(matchingAlbums))
             {
-                var photos = await oneDriveWallpaperSourceService
-                    .GetAlbumPhotosAsync(album.Id, cancellationToken)
-                    .ConfigureAwait(false);
+                IReadOnlyList<OneDriveWallpaperPhoto> photos;
+                try
+                {
+                    photos = await oneDriveWallpaperSourceService
+                        .GetAlbumPhotosAsync(album.Id, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                }
+
                 var selectedPhoto = wallpaperSelectionService.SelectBestPhoto(photos, targetDisplay);
                 if (selectedPhoto is null)
                 {
                     continue;
                 }
 
-                var imageBytes = await oneDriveWallpaperSourceService
-                    .DownloadPhotoBytesAsync(selectedPhoto.Id, cancellationToken)
-                    .ConfigureAwait(false);
+                byte[] imageBytes;
+                try
+                {
+                    imageBytes = await oneDriveWallpaperSourceService
+                        .DownloadPhotoBytesAsync(selectedPhoto.Id, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                }
+
                 var localFilePath = await SaveWallpaperFileAsync(selectedPhoto, imageBytes, cancellationToken).ConfigureAwait(false);
 
                 await lockScreenWallpaperService
                     .ApplyAsync(localFilePath, cancellationToken)
                     .ConfigureAwait(false);
 
-                return WallpaperRefreshResult.Succeeded(
-                    attemptedAtLocal,
-                    matchingAlbums.Count,
-                    album.Name,
-                    selectedPhoto.Name);
+                return WallpaperRefreshResult.Succeeded(attemptedAtLocal, matchingAlbumCount, album.Name, selectedPhoto.Name);
             }
 
-            return WallpaperRefreshResult.NoEligiblePhotos(attemptedAtLocal, matchingAlbums.Count);
-        }
-        catch (InvalidOperationException exception)
-        {
-            logger.LogWarning(exception, "Wallpaper refresh requires the user to sign in again or enable platform support.");
-            return WallpaperRefreshResult.ReauthenticationRequired(attemptedAtLocal, exception.Message);
+            return WallpaperRefreshResult.NoEligiblePhotos(attemptedAtLocal, matchingAlbumCount);
         }
         catch (Exception exception) when (
             exception is HttpRequestException
             or JsonException
             or IOException
             or PlatformNotSupportedException
-            or UnauthorizedAccessException)
+            or UnauthorizedAccessException
+            or InvalidOperationException)
         {
             logger.LogWarning(exception, "Wallpaper refresh failed.");
-            return WallpaperRefreshResult.Failed(attemptedAtLocal, 0, exception.Message);
+            return WallpaperRefreshResult.Failed(attemptedAtLocal, matchingAlbumCount, exception.Message);
         }
+    }
+
+    private WallpaperRefreshResult CreateReauthenticationRequiredResult(
+        DateTimeOffset attemptedAtLocal,
+        InvalidOperationException exception)
+    {
+        logger.LogWarning(exception, "Wallpaper refresh requires the user to sign in again before LockPaper can read OneDrive.");
+        return WallpaperRefreshResult.ReauthenticationRequired(attemptedAtLocal, exception.Message);
     }
 
     private IEnumerable<OneDriveWallpaperAlbum> ShuffleAlbums(IReadOnlyList<OneDriveWallpaperAlbum> albums)

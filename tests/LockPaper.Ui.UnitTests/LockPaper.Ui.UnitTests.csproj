@@ -36,9 +36,11 @@
     <Compile Include="..\..\src\LockPaper.Ui\PageModels\MainPageModel.cs" Link="Source\PageModels\MainPageModel.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Implementations\OneDriveAlbumDiscoveryService.cs" Link="Source\Services\Implementations\OneDriveAlbumDiscoveryService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Implementations\OneDriveWallpaperSourceService.cs" Link="Source\Services\Implementations\OneDriveWallpaperSourceService.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Implementations\WallpaperRefreshService.cs" Link="Source\Services\Implementations\WallpaperRefreshService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Implementations\WallpaperSelectionService.cs" Link="Source\Services\Implementations\WallpaperSelectionService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveAlbumDiscoveryService.cs" Link="Source\Services\Interfaces\IOneDriveAlbumDiscoveryService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IDeviceDisplayService.cs" Link="Source\Services\Interfaces\IDeviceDisplayService.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\ILockScreenWallpaperService.cs" Link="Source\Services\Interfaces\ILockScreenWallpaperService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveAuthenticationService.cs" Link="Source\Services\Interfaces\IOneDriveAuthenticationService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveWallpaperSourceService.cs" Link="Source\Services\Interfaces\IOneDriveWallpaperSourceService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IRandomizer.cs" Link="Source\Services\Interfaces\IRandomizer.cs" />

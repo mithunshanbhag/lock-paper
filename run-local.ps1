@@ -65,15 +65,57 @@ function Invoke-TestTarget {
     }
 }
 
-function Get-AppPackageManifest {
-    $appOutputRoot = Join-Path (Split-Path $appProjectPath -Parent) "bin\Debug\$windowsTargetFramework"
-    $manifestPath = Join-Path $appOutputRoot 'win-x64\AppX\AppxManifest.xml'
+function Resolve-AppPackageManifestFile {
+    $appProjectRoot = Split-Path $appProjectPath -Parent
+    $appOutputRoot = Join-Path $appProjectRoot "bin\Debug\$windowsTargetFramework"
+    $appIntermediateRoot = Join-Path $appProjectRoot "obj\Debug\$windowsTargetFramework"
+    $candidateManifestPaths = @(
+        (Join-Path $appOutputRoot 'win-x64\AppX\AppxManifest.xml'),
+        (Join-Path $appOutputRoot 'win-x64\AppxManifest.xml'),
+        (Join-Path $appIntermediateRoot 'win-x64\MsixContent\AppxManifest.xml')
+    )
 
-    if (-not (Test-Path $manifestPath)) {
-        return $null
+    foreach ($manifestPath in $candidateManifestPaths) {
+        if (Test-Path $manifestPath) {
+            return Get-Item -Path $manifestPath
+        }
     }
 
-    return Get-Item -Path $manifestPath
+    return $null
+}
+
+function Get-AppManifestRegistrationInfo {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo] $Manifest
+    )
+
+    [xml] $manifestXml = Get-Content -Path $Manifest.FullName
+    $identityNode = $manifestXml.SelectSingleNode("/*[local-name()='Package']/*[local-name()='Identity']")
+    $applicationNode = $manifestXml.SelectSingleNode("/*[local-name()='Package']/*[local-name()='Applications']/*[local-name()='Application']")
+
+    $packageName = $null
+    if ($null -ne $identityNode -and $null -ne $identityNode.Attributes['Name']) {
+        $packageName = $identityNode.Attributes['Name'].Value
+    }
+
+    $appId = $null
+    if ($null -ne $applicationNode -and $null -ne $applicationNode.Attributes['Id']) {
+        $appId = $applicationNode.Attributes['Id'].Value
+    }
+
+    if ([string]::IsNullOrWhiteSpace($packageName)) {
+        throw "Could not read the package identity name from '$($Manifest.FullName)'."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($appId)) {
+        throw "Could not read the application Id from '$($Manifest.FullName)'."
+    }
+
+    return [PSCustomObject] @{
+        AppId       = $appId
+        PackageName = $packageName
+    }
 }
 
 function Register-AppPackage {
@@ -82,25 +124,40 @@ function Register-AppPackage {
         [System.IO.FileInfo] $Manifest
     )
 
-    [xml] $manifestXml = Get-Content -Path $Manifest.FullName
-    $packageName = $manifestXml.Package.Identity.Name
-    $appId = $manifestXml.Package.Applications.Application.Id
+    $manifestInfo = Get-AppManifestRegistrationInfo -Manifest $Manifest
+    $packageName = $manifestInfo.PackageName
+    $appId = $manifestInfo.AppId
 
     Write-Host "Registering Windows app package '$packageName'." -ForegroundColor Cyan
     Add-AppxPackage -Register $Manifest.FullName -DisableDevelopmentMode
 
-    $package = Get-AppxPackage -Name $packageName |
-        Where-Object { $_.InstallLocation -ieq $Manifest.DirectoryName } |
-        Select-Object -First 1
+    return Get-RegisteredAppUserModelId -PackageName $packageName -AppId $appId
+}
 
-    if ($null -eq $package) {
-        throw "Could not find registered app package '$packageName' at '$($Manifest.DirectoryName)'."
+function Get-RegisteredAppUserModelId {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $PackageName,
+
+        [Parameter(Mandatory = $true)]
+        [string] $AppId
+    )
+
+    $appIdPattern = '^' + [regex]::Escape($PackageName) + '_.+!' + [regex]::Escape($AppId) + '$'
+
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        $startApp = Get-StartApps |
+            Where-Object { $_.AppId -match $appIdPattern } |
+            Select-Object -First 1
+
+        if ($null -ne $startApp) {
+            return $startApp.AppId
+        }
+
+        Start-Sleep -Milliseconds 500
     }
 
-    return [PSCustomObject] @{
-        AppId             = $appId
-        PackageFamilyName = $package.PackageFamilyName
-    }
+    throw "Could not resolve the registered app user model id for package '$PackageName' and app '$AppId'."
 }
 
 function Get-RunningAppProcess {
@@ -110,14 +167,10 @@ function Get-RunningAppProcess {
 function Start-PackagedApp {
     param(
         [Parameter(Mandatory = $true)]
-        [string] $PackageFamilyName,
-
-        [Parameter(Mandatory = $true)]
-        [string] $AppId
+        [string] $AppUserModelId
     )
 
-    $appUserModelId = "$PackageFamilyName!$AppId"
-    Start-Process -FilePath "shell:AppsFolder\$appUserModelId"
+    Start-Process -FilePath "shell:AppsFolder\$AppUserModelId"
 
     for ($attempt = 0; $attempt -lt 30; $attempt++) {
         Start-Sleep -Milliseconds 500
@@ -129,7 +182,7 @@ function Start-PackagedApp {
         }
     }
 
-    throw "Launched '$appUserModelId', but no '$appProcessName' process stayed running."
+    throw "Launched '$AppUserModelId', but no '$appProcessName' process stayed running."
 }
 
 function Invoke-AppTarget {
@@ -149,13 +202,13 @@ function Invoke-AppTarget {
 
     Invoke-DotNetCommand -Arguments @('build', $appProjectPath, '--framework', $windowsTargetFramework, '--nologo')
 
-    $appPackageManifest = Get-AppPackageManifest
+    $appPackageManifest = Resolve-AppPackageManifestFile
     if ($null -eq $appPackageManifest) {
         throw "Could not find the Windows app package manifest after building the app."
     }
 
-    $appPackage = Register-AppPackage -Manifest $appPackageManifest
-    Start-PackagedApp -PackageFamilyName $appPackage.PackageFamilyName -AppId $appPackage.AppId
+    $appUserModelId = Register-AppPackage -Manifest $appPackageManifest
+    Start-PackagedApp -AppUserModelId $appUserModelId
 }
 
 Push-Location $repoRoot

@@ -361,6 +361,40 @@ public class MainPageModelTests
         Assert.Equal("Waiting for wallpaper scheduling.", model.NextAttemptText);
     }
 
+    [Fact]
+    public async Task PrimaryActionCommand_WhenWallpaperRefreshFails_ShouldStayConnected()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService
+            {
+                CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
+            },
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService
+            {
+                RefreshResult = WallpaperRefreshResult.Failed(
+                    DateTimeOffset.Parse("2026-04-30T21:15:00+05:30"),
+                    1,
+                    "Windows rejected the lock-screen image. Make sure the packaged app can personalize the lock screen."),
+            },
+            dispatcher,
+            NullLogger<MainPageModel>.Instance);
+
+        await model.InitializeAsync();
+        await model.PrimaryActionCommand.ExecuteAsync(null);
+
+        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
+        Assert.True(model.IsPrimaryActionEnabled);
+        Assert.True(model.ShowConnectedLayout);
+        Assert.False(model.ShowSignedOutLayout);
+        Assert.False(model.FeedbackText.Contains("sign in again", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("Windows rejected the lock-screen image", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Wallpaper refresh failed", model.LastAttemptText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Waiting for wallpaper scheduling.", model.NextAttemptText);
+    }
+
     #endregion
 
     private sealed class FakeOneDriveAuthenticationService : IOneDriveAuthenticationService
