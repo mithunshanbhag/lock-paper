@@ -5,12 +5,16 @@
 
     <Color x:Key="PageBackground">#EEF3FF</Color>
     <Color x:Key="ScreenFrameColor">#181C28</Color>
+    <Color x:Key="DarkTitleTextColor">#182338</Color>
     <Color x:Key="ScreenGradientStart">#5D78D7</Color>
     <Color x:Key="ScreenGradientMiddle">#56B8CC</Color>
     <Color x:Key="ScreenGradientEnd">#E5D48E</Color>
+    <Color x:Key="DisconnectedScreenGradientStart">#FFFFFF</Color>
+    <Color x:Key="DisconnectedScreenGradientEnd">#F7F9FD</Color>
     <Color x:Key="PrimaryActionColor">#5B6DF8</Color>
     <Color x:Key="PrimaryActionPressedColor">#4657DF</Color>
     <Color x:Key="TitleTextColor">#FFFFFF</Color>
+    <Color x:Key="ScreenSupportTextColor">#F4F7FF</Color>
     <Color x:Key="SuccessSurfaceColor">#F2FBF5</Color>
     <Color x:Key="SuccessTextColor">#177348</Color>
     <Color x:Key="CardBackgroundColor">#F8FAFF</Color>
@@ -18,13 +22,29 @@
     <Color x:Key="CardTextColor">#1A2740</Color>
     <Color x:Key="MutedTextColor">#61708D</Color>
 
-    <LinearGradientBrush x:Key="ScreenBackgroundBrush"
-                         EndPoint="0,1">
+    <LinearGradientBrush x:Key="ConnectedScreenBackgroundBrush"
+                          EndPoint="0,1">
         <GradientStop Offset="0.0"
                       Color="{StaticResource ScreenGradientStart}" />
         <GradientStop Offset="0.54"
                       Color="{StaticResource ScreenGradientMiddle}" />
         <GradientStop Offset="1.0"
                       Color="{StaticResource ScreenGradientEnd}" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="DisconnectedScreenBackgroundBrush"
+                         EndPoint="0,1">
+        <GradientStop Offset="0.0"
+                      Color="{StaticResource DisconnectedScreenGradientStart}" />
+        <GradientStop Offset="1.0"
+                      Color="{StaticResource DisconnectedScreenGradientEnd}" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="PrimaryActionBackgroundBrush"
+                         EndPoint="0,1">
+        <GradientStop Offset="0.0"
+                      Color="{StaticResource PrimaryActionColor}" />
+        <GradientStop Offset="1.0"
+                      Color="{StaticResource PrimaryActionPressedColor}" />
     </LinearGradientBrush>
 </ResourceDictionary>

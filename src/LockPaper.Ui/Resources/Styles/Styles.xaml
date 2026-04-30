@@ -8,8 +8,6 @@
 
     <Style x:Key="DeviceScreenStyle"
            TargetType="Border">
-        <Setter Property="Background"
-                Value="{StaticResource ScreenBackgroundBrush}" />
         <Setter Property="Padding"
                 Value="22,28" />
         <Setter Property="Stroke"
@@ -28,14 +26,24 @@
         </Setter>
     </Style>
 
-    <Style x:Key="AppTitleLabelStyle"
+    <Style x:Key="ConnectedAppTitleLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                 Value="36" />
+        <Setter Property="FontAttributes"
+                 Value="Bold" />
+        <Setter Property="TextColor"
+                 Value="{StaticResource TitleTextColor}" />
+    </Style>
+
+    <Style x:Key="DisconnectedAppTitleLabelStyle"
            TargetType="Label">
         <Setter Property="FontSize"
                 Value="36" />
         <Setter Property="FontAttributes"
                 Value="Bold" />
         <Setter Property="TextColor"
-                Value="{StaticResource TitleTextColor}" />
+                Value="{StaticResource DarkTitleTextColor}" />
     </Style>
 
     <Style x:Key="StatusIconButtonStyle"
@@ -56,6 +64,14 @@
                 Value="{StaticResource SuccessTextColor}" />
         <Setter Property="Padding"
                 Value="0" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource SuccessTextColor}"
+                        Opacity="0.18"
+                        Radius="18"
+                        Offset="0,10" />
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="PrimaryActionButtonStyle"
@@ -64,8 +80,8 @@
                 Value="56" />
         <Setter Property="CornerRadius"
                 Value="16" />
-        <Setter Property="BackgroundColor"
-                Value="{StaticResource PrimaryActionColor}" />
+        <Setter Property="Background"
+                Value="{StaticResource PrimaryActionBackgroundBrush}" />
         <Setter Property="TextColor"
                 Value="White" />
         <Setter Property="FontAttributes"
@@ -107,11 +123,15 @@
                 Value="RoundRectangle 18" />
         <Setter Property="StrokeThickness"
                 Value="1" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="#141E38"
+                        Opacity="0.08"
+                        Radius="16"
+                        Offset="0,8" />
+            </Setter.Value>
+        </Setter>
     </Style>
-
-    <Style x:Key="NoticeCardStyle"
-           TargetType="Border"
-           BasedOn="{StaticResource BaseCardStyle}" />
 
     <Style x:Key="StatusCardStyle"
            TargetType="Border"
@@ -135,17 +155,7 @@
                 Value="{StaticResource MutedTextColor}" />
     </Style>
 
-    <Style x:Key="CardTitleLabelStyle"
-           TargetType="Label">
-        <Setter Property="FontSize"
-                Value="20" />
-        <Setter Property="FontAttributes"
-                Value="Bold" />
-        <Setter Property="TextColor"
-                Value="{StaticResource CardTextColor}" />
-    </Style>
-
-    <Style x:Key="CardBodyLabelStyle"
+    <Style x:Key="DisconnectedFeedbackLabelStyle"
            TargetType="Label">
         <Setter Property="FontSize"
                 Value="15" />
@@ -153,6 +163,16 @@
                 Value="1.4" />
         <Setter Property="TextColor"
                 Value="{StaticResource MutedTextColor}" />
+    </Style>
+
+    <Style x:Key="ConnectedFeedbackLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                Value="15" />
+        <Setter Property="LineHeight"
+                Value="1.4" />
+        <Setter Property="TextColor"
+                Value="{StaticResource ScreenSupportTextColor}" />
     </Style>
 
     <Style x:Key="CardValueLabelStyle"

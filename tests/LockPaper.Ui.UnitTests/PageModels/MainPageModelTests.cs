@@ -16,10 +16,13 @@ public class MainPageModelTests
         Assert.Equal("Connect to OneDrive", model.PrimaryActionText);
         Assert.True(model.IsPrimaryActionEnabled);
         Assert.False(model.IsLogoutVisible);
-        Assert.False(model.ShowNotice);
-        Assert.False(model.ShowStatusSummary);
-        Assert.Equal(string.Empty, model.AccountSummaryText);
-        Assert.Equal(string.Empty, model.ConnectionSummaryText);
+        Assert.True(model.ShowSignedOutLayout);
+        Assert.False(model.ShowConnectedLayout);
+        Assert.False(model.ShowFeedback);
+        Assert.Equal(string.Empty, model.PrimaryStatusLabel);
+        Assert.Equal(string.Empty, model.PrimaryStatusText);
+        Assert.Equal(string.Empty, model.SecondaryStatusLabel);
+        Assert.Equal(string.Empty, model.SecondaryStatusText);
     }
 
     [Fact]
@@ -36,10 +39,13 @@ public class MainPageModelTests
         Assert.Equal("Refresh OneDrive connection", model.PrimaryActionText);
         Assert.True(model.IsPrimaryActionEnabled);
         Assert.True(model.IsLogoutVisible);
-        Assert.False(model.ShowNotice);
-        Assert.True(model.ShowStatusSummary);
-        Assert.Equal("family@example.com", model.AccountSummaryText);
-        Assert.Equal("Connected", model.ConnectionSummaryText);
+        Assert.False(model.ShowSignedOutLayout);
+        Assert.True(model.ShowConnectedLayout);
+        Assert.False(model.ShowFeedback);
+        Assert.Equal("Microsoft account", model.PrimaryStatusLabel);
+        Assert.Equal("family@example.com", model.PrimaryStatusText);
+        Assert.Equal("Session", model.SecondaryStatusLabel);
+        Assert.Equal("Connected", model.SecondaryStatusText);
     }
 
     #endregion
@@ -57,16 +63,15 @@ public class MainPageModelTests
 
         await model.InitializeAsync();
 
-        Assert.True(model.ShowNotice);
-        Assert.Equal("Reconnect to OneDrive", model.NoticeTitle);
-        Assert.Contains("sign in again", model.NoticeMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Reconnect to OneDrive", model.PrimaryActionText);
-        Assert.Equal("Reconnect required", model.ConnectionSummaryText);
-        Assert.True(model.ShowStatusSummary);
+        Assert.True(model.ShowConnectedLayout);
+        Assert.True(model.ShowFeedback);
+        Assert.Contains("sign in again", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Needs sign-in", model.SecondaryStatusText);
     }
 
     [Fact]
-    public async Task PrimaryActionCommand_WhenSignInIsCancelled_ShouldRemainSignedOutAndShowNotice()
+    public async Task PrimaryActionCommand_WhenSignInIsCancelled_ShouldRemainSignedOutAndShowFeedback()
     {
         var model = new MainPageModel(
             new FakeOneDriveAuthenticationService
@@ -76,10 +81,11 @@ public class MainPageModelTests
 
         await model.PrimaryActionCommand.ExecuteAsync(null);
 
-        Assert.True(model.ShowNotice);
-        Assert.Equal("Sign-in cancelled", model.NoticeTitle);
+        Assert.True(model.ShowSignedOutLayout);
+        Assert.True(model.ShowFeedback);
+        Assert.Contains("did not change your OneDrive connection", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.False(model.IsLogoutVisible);
-        Assert.False(model.ShowStatusSummary);
+        Assert.False(model.ShowConnectedLayout);
         Assert.Equal("Connect to OneDrive", model.PrimaryActionText);
     }
 
@@ -97,10 +103,9 @@ public class MainPageModelTests
 
         await model.PrimaryActionCommand.ExecuteAsync(null);
 
-        Assert.True(model.ShowNotice);
-        Assert.Equal("Couldn't connect", model.NoticeTitle);
-        Assert.Contains("desktop redirect URI", model.NoticeMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("http://localhost", model.NoticeMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.True(model.ShowFeedback);
+        Assert.Contains("desktop redirect URI", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("http://localhost", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -121,11 +126,14 @@ public class MainPageModelTests
         await model.LogOutAsync();
 
         Assert.Equal("Connect to OneDrive", model.PrimaryActionText);
-        Assert.False(model.ShowNotice);
+        Assert.False(model.ShowFeedback);
         Assert.False(model.IsLogoutVisible);
-        Assert.False(model.ShowStatusSummary);
-        Assert.Equal(string.Empty, model.AccountSummaryText);
-        Assert.Equal(string.Empty, model.ConnectionSummaryText);
+        Assert.True(model.ShowSignedOutLayout);
+        Assert.False(model.ShowConnectedLayout);
+        Assert.Equal(string.Empty, model.PrimaryStatusLabel);
+        Assert.Equal(string.Empty, model.PrimaryStatusText);
+        Assert.Equal(string.Empty, model.SecondaryStatusLabel);
+        Assert.Equal(string.Empty, model.SecondaryStatusText);
     }
 
     #endregion

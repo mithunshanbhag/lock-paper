@@ -8,6 +8,8 @@ namespace LockPaper.Ui.PageModels;
 public partial class MainPageModel : ObservableObject
 {
     private const string DefaultAccountLabel = "Personal Microsoft account";
+    private const string AccountStatusLabel = "Microsoft account";
+    private const string SessionStatusLabel = "Session";
 
     private readonly IOneDriveAuthenticationService _oneDriveAuthenticationService;
     private bool _hasInitialized;
@@ -22,22 +24,28 @@ public partial class MainPageModel : ObservableObject
     private bool _isPrimaryActionEnabled = true;
 
     [ObservableProperty]
-    private bool _showNotice;
+    private bool _showSignedOutLayout = true;
 
     [ObservableProperty]
-    private string _noticeTitle = string.Empty;
+    private bool _showConnectedLayout;
 
     [ObservableProperty]
-    private string _noticeMessage = string.Empty;
+    private bool _showFeedback;
 
     [ObservableProperty]
-    private bool _showStatusSummary;
+    private string _feedbackText = string.Empty;
 
     [ObservableProperty]
-    private string _accountSummaryText = string.Empty;
+    private string _primaryStatusLabel = string.Empty;
 
     [ObservableProperty]
-    private string _connectionSummaryText = string.Empty;
+    private string _primaryStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _secondaryStatusLabel = string.Empty;
+
+    [ObservableProperty]
+    private string _secondaryStatusText = string.Empty;
 
     public MainPageModel(IOneDriveAuthenticationService oneDriveAuthenticationService)
     {
@@ -75,13 +83,6 @@ public partial class MainPageModel : ObservableObject
     {
         var connectionState = await _oneDriveAuthenticationService.GetCurrentConnectionStateAsync();
         ApplyConnectionState(connectionState);
-
-        if (connectionState.Status == OneDriveConnectionStatus.ReauthenticationRequired)
-        {
-            ShowNotice = true;
-            NoticeTitle = "Reconnect to OneDrive";
-            NoticeMessage = "LockPaper needs you to sign in again before it can keep using OneDrive.";
-        }
     }
 
     private void ApplyScenario(LockPaperScenario scenario)
@@ -95,21 +96,24 @@ public partial class MainPageModel : ObservableObject
         };
         IsPrimaryActionEnabled = scenario != LockPaperScenario.Connecting;
         IsLogoutVisible = scenario is LockPaperScenario.Connected or LockPaperScenario.ReauthenticationRequired;
-        ShowStatusSummary = scenario is not LockPaperScenario.SignedOut and not LockPaperScenario.Connecting;
+        ShowConnectedLayout = scenario is LockPaperScenario.Connected or LockPaperScenario.ReauthenticationRequired;
+        ShowSignedOutLayout = !ShowConnectedLayout;
 
         switch (scenario)
         {
             case LockPaperScenario.SignedOut:
-                AccountSummaryText = string.Empty;
-                ConnectionSummaryText = string.Empty;
-                ClearNotice();
+                ClearStatusSummary();
+                ClearFeedback();
                 break;
             case LockPaperScenario.Connecting:
-                AccountSummaryText = string.Empty;
-                ConnectionSummaryText = string.Empty;
-                ShowNotice = true;
-                NoticeTitle = "Connecting to OneDrive";
-                NoticeMessage = "Finish the Microsoft sign-in flow to connect LockPaper.";
+                ClearStatusSummary();
+                SetFeedback("Finish the Microsoft sign-in flow to connect LockPaper.");
+                break;
+            case LockPaperScenario.Connected:
+                ClearFeedback();
+                break;
+            case LockPaperScenario.ReauthenticationRequired:
+                SetFeedback("LockPaper needs you to sign in again before it can keep using OneDrive.");
                 break;
         }
     }
@@ -130,9 +134,11 @@ public partial class MainPageModel : ObservableObject
             return;
         }
 
-        AccountSummaryText = FormatAccountLabel(connectionState.AccountLabel);
-        ConnectionSummaryText = scenario == LockPaperScenario.ReauthenticationRequired
-            ? "Reconnect required"
+        PrimaryStatusLabel = AccountStatusLabel;
+        PrimaryStatusText = FormatAccountLabel(connectionState.AccountLabel);
+        SecondaryStatusLabel = SessionStatusLabel;
+        SecondaryStatusText = scenario == LockPaperScenario.ReauthenticationRequired
+            ? "Needs sign-in"
             : "Connected";
     }
 
@@ -143,17 +149,13 @@ public partial class MainPageModel : ObservableObject
         switch (result.Status)
         {
             case OneDriveConnectionOperationStatus.Succeeded:
-                ClearNotice();
+                ClearFeedback();
                 break;
             case OneDriveConnectionOperationStatus.Cancelled:
-                ShowNotice = true;
-                NoticeTitle = "Sign-in cancelled";
-                NoticeMessage = "LockPaper did not change your OneDrive connection.";
+                SetFeedback("LockPaper did not change your OneDrive connection.");
                 break;
             case OneDriveConnectionOperationStatus.Failed:
-                ShowNotice = true;
-                NoticeTitle = "Couldn't connect";
-                NoticeMessage = BuildSignInFailureMessage(result);
+                SetFeedback(BuildSignInFailureMessage(result));
                 break;
         }
     }
@@ -164,20 +166,31 @@ public partial class MainPageModel : ObservableObject
 
         if (result.Status == OneDriveConnectionOperationStatus.Failed)
         {
-            ShowNotice = true;
-            NoticeTitle = "Couldn't log out";
-            NoticeMessage = BuildSignOutFailureMessage(result);
+            SetFeedback(BuildSignOutFailureMessage(result));
             return;
         }
 
-        ClearNotice();
+        ClearFeedback();
     }
 
-    private void ClearNotice()
+    private void ClearStatusSummary()
     {
-        ShowNotice = false;
-        NoticeTitle = string.Empty;
-        NoticeMessage = string.Empty;
+        PrimaryStatusLabel = string.Empty;
+        PrimaryStatusText = string.Empty;
+        SecondaryStatusLabel = string.Empty;
+        SecondaryStatusText = string.Empty;
+    }
+
+    private void ClearFeedback()
+    {
+        ShowFeedback = false;
+        FeedbackText = string.Empty;
+    }
+
+    private void SetFeedback(string message)
+    {
+        ShowFeedback = true;
+        FeedbackText = message;
     }
 
     private static string BuildSignInFailureMessage(OneDriveConnectionOperationResult result)

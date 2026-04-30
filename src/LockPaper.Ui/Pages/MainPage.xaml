@@ -6,23 +6,46 @@
              x:DataType="pageModels:MainPageModel"
              Title="LockPaper"
              Shell.NavBarIsVisible="False"
-             BackgroundColor="{StaticResource PageBackground}">
+              BackgroundColor="{StaticResource PageBackground}">
 
     <ScrollView>
         <Grid Padding="{StaticResource ScreenPadding}"
-              MinimumHeightRequest="760"
-              MaximumWidthRequest="408"
               HorizontalOptions="Center">
-            <Border Style="{StaticResource DeviceScreenStyle}">
+            <Border Style="{StaticResource DeviceScreenStyle}"
+                    WidthRequest="360"
+                    MinimumHeightRequest="760"
+                    Background="{StaticResource DisconnectedScreenBackgroundBrush}"
+                    IsVisible="{Binding ShowSignedOutLayout}">
                 <VerticalStackLayout Spacing="18"
                                      VerticalOptions="Center">
+                    <Label Text="LockPaper"
+                           Style="{StaticResource DisconnectedAppTitleLabelStyle}"
+                           HorizontalTextAlignment="Center"
+                           SemanticProperties.HeadingLevel="Level1" />
+
+                    <Button Text="{Binding PrimaryActionText}"
+                            Style="{StaticResource PrimaryActionButtonStyle}"
+                            Command="{Binding PrimaryActionCommand}"
+                            IsEnabled="{Binding IsPrimaryActionEnabled}" />
+
+                    <Label Text="{Binding FeedbackText}"
+                           Style="{StaticResource DisconnectedFeedbackLabelStyle}"
+                           IsVisible="{Binding ShowFeedback}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource DeviceScreenStyle}"
+                    WidthRequest="360"
+                    MinimumHeightRequest="760"
+                    Background="{StaticResource ConnectedScreenBackgroundBrush}"
+                    IsVisible="{Binding ShowConnectedLayout}">
+                <VerticalStackLayout Spacing="18">
                     <Grid ColumnDefinitions="*,Auto"
                           ColumnSpacing="16">
-                        <VerticalStackLayout Spacing="4">
-                            <Label Text="LockPaper"
-                                   Style="{StaticResource AppTitleLabelStyle}"
-                                   SemanticProperties.HeadingLevel="Level1" />
-                        </VerticalStackLayout>
+                        <Label Text="LockPaper"
+                               Style="{StaticResource ConnectedAppTitleLabelStyle}"
+                               SemanticProperties.HeadingLevel="Level1" />
 
                         <Button Grid.Column="1"
                                 Text="✓"
@@ -37,39 +60,27 @@
                             Command="{Binding PrimaryActionCommand}"
                             IsEnabled="{Binding IsPrimaryActionEnabled}" />
 
-                    <Border Style="{StaticResource NoticeCardStyle}"
-                            IsVisible="{Binding ShowNotice}">
-                        <VerticalStackLayout Spacing="6">
-                            <Label Text="{Binding NoticeTitle}"
-                                   Style="{StaticResource CardTitleLabelStyle}" />
-                            <Label Text="{Binding NoticeMessage}"
-                                   Style="{StaticResource CardBodyLabelStyle}" />
+                    <Label Text="{Binding FeedbackText}"
+                           Style="{StaticResource ConnectedFeedbackLabelStyle}"
+                           IsVisible="{Binding ShowFeedback}" />
+
+                    <Border Style="{StaticResource StatusCardStyle}">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="{Binding PrimaryStatusLabel}"
+                                   Style="{StaticResource SectionLabelStyle}" />
+                            <Label Text="{Binding PrimaryStatusText}"
+                                   Style="{StaticResource CardValueLabelStyle}" />
                         </VerticalStackLayout>
                     </Border>
 
-                    <Grid ColumnDefinitions="*,*"
-                          ColumnSpacing="12"
-                          IsVisible="{Binding ShowStatusSummary}">
-                        <Border Grid.Column="0"
-                                Style="{StaticResource StatusCardStyle}">
-                            <VerticalStackLayout Spacing="8">
-                                <Label Text="Microsoft account"
-                                       Style="{StaticResource SectionLabelStyle}" />
-                                <Label Text="{Binding AccountSummaryText}"
-                                       Style="{StaticResource CardValueLabelStyle}" />
-                            </VerticalStackLayout>
-                        </Border>
-
-                        <Border Grid.Column="1"
-                                Style="{StaticResource StatusCardStyle}">
-                            <VerticalStackLayout Spacing="8">
-                                <Label Text="Session"
-                                       Style="{StaticResource SectionLabelStyle}" />
-                                <Label Text="{Binding ConnectionSummaryText}"
-                                       Style="{StaticResource CardValueLabelStyle}" />
-                            </VerticalStackLayout>
-                        </Border>
-                    </Grid>
+                    <Border Style="{StaticResource StatusCardStyle}">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="{Binding SecondaryStatusLabel}"
+                                   Style="{StaticResource SectionLabelStyle}" />
+                            <Label Text="{Binding SecondaryStatusText}"
+                                   Style="{StaticResource CardValueLabelStyle}" />
+                        </VerticalStackLayout>
+                    </Border>
                 </VerticalStackLayout>
             </Border>
         </Grid>
