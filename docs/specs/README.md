@@ -37,7 +37,8 @@ Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
 - Orientation-aware filtering before fallback selection.
 - Best-effort hourly background refresh.
 - A minimal in-app screen with:
-  - current connection/status summary
+  - current connection/status summary, including the signed-in Microsoft account
+  - one display summary card that keeps every detected screen, monitor, or display grouped together as simple rectangles with each display's resolution shown inside its rectangle
   - a manual "change wallpaper now" action
   - basic success and error feedback
 
@@ -108,10 +109,13 @@ Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
 
 - The main screen must expose a single prominent action to change the wallpaper immediately.
 - The main screen must show basic status, including:
-  - sign-in state
+  - sign-in state through a Microsoft account card
+  - a single display summary card for the attached screen or monitors, using simple colored rectangles with the resolution shown inside each display rectangle
   - whether a matching album was found
   - the last change attempt result
   - the next scheduled attempt target or scheduling state
+- On Windows, the display summary card may show more than one attached monitor at the same time.
+- On Android, the display summary should normally show the current device screen only.
 - The v1 UI does not need a full settings surface.
 
 ### FR7. Feedback and failure states
@@ -132,6 +136,7 @@ Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
 - Users are responsible for curating the OneDrive album contents.
 - Users may rotate between portrait and landscape devices; the app should evaluate orientation per device at runtime rather than assuming one fixed preference.
 - Time-related UI and scheduling behavior should be interpreted in the current device's local time zone.
+- Windows devices may expose multiple attached monitors, while Android devices will usually report a single built-in screen.
 
 ## Open questions
 

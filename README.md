@@ -74,9 +74,10 @@ The current repository now supports the OneDrive connectivity slice for the v1 s
 2. sign in with a personal Microsoft account,
 3. confirm that the app recognizes the connected account,
 4. refresh the OneDrive session from the primary action button, and
-5. log out from the title-bar affordance.
+5. review the connected-state cards for the Microsoft account, current display summary, last attempt, and next attempt placeholders, and
+6. log out from the title-bar affordance.
 
-Album discovery, wallpaper rotation, and background scheduling are still pending. The connected state is currently focused on session visibility and re-authentication rather than wallpaper changes.
+Album discovery, wallpaper rotation, and background scheduling are still pending. The connected state now surfaces account and display context plus honest attempt placeholders while the wallpaper-change workflow is still being implemented.
 
 ## 🛠️ Build and run locally
 

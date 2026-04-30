@@ -11,9 +11,11 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
 
     public async Task<OneDriveConnectionState> GetCurrentConnectionStateAsync(CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Checking current OneDrive connection state.");
         var account = await GetPrimaryAccountAsync().ConfigureAwait(false);
         if (account is null)
         {
+            logger.LogInformation("No cached OneDrive account found.");
             return OneDriveConnectionState.CreateSignedOut();
         }
 
@@ -24,7 +26,9 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
                 .ExecuteAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            return OneDriveConnectionState.CreateConnected(GetAccountLabel(authenticationResult.Account ?? account));
+            var accountLabel = GetAccountLabel(authenticationResult.Account ?? account);
+            logger.LogInformation("Cached OneDrive session is valid for account {AccountLabel}.", accountLabel);
+            return OneDriveConnectionState.CreateConnected(accountLabel);
         }
         catch (MsalUiRequiredException exception)
         {
@@ -40,6 +44,7 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
 
     public async Task<OneDriveConnectionOperationResult> SignInAsync(CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Starting interactive OneDrive sign-in.");
         try
         {
             var authenticationRequest = _publicClientApplication
@@ -63,6 +68,7 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
                 .ExecuteAsync(cancellationToken)
                 .ConfigureAwait(false);
 
+            logger.LogInformation("Interactive OneDrive sign-in succeeded for account {AccountLabel}.", GetAccountLabel(authenticationResult.Account));
             return OneDriveConnectionOperationResult.Succeeded(
                 OneDriveConnectionState.CreateConnected(GetAccountLabel(authenticationResult.Account)));
         }
@@ -84,6 +90,7 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
 
     public async Task<OneDriveConnectionOperationResult> SignOutAsync(CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Starting OneDrive sign-out.");
         try
         {
             var accounts = await _publicClientApplication.GetAccountsAsync().ConfigureAwait(false);
@@ -92,6 +99,7 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
                 await _publicClientApplication.RemoveAsync(account).ConfigureAwait(false);
             }
 
+            logger.LogInformation("OneDrive sign-out completed.");
             return OneDriveConnectionOperationResult.Succeeded(OneDriveConnectionState.CreateSignedOut());
         }
         catch (MsalException exception)

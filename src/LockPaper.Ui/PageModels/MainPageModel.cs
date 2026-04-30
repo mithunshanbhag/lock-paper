@@ -2,17 +2,28 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LockPaper.Ui.Models;
 using LockPaper.Ui.Services.Interfaces;
+using Microsoft.Extensions.Logging;
+using System.Collections.ObjectModel;
 
 namespace LockPaper.Ui.PageModels;
 
 public partial class MainPageModel : ObservableObject
 {
     private const string DefaultAccountLabel = "Personal Microsoft account";
-    private const string AccountStatusLabel = "Microsoft account";
-    private const string SessionStatusLabel = "Session";
 
+    private readonly IDeviceDisplayService _deviceDisplayService;
+    private readonly ILogger<MainPageModel> _logger;
     private readonly IOneDriveAuthenticationService _oneDriveAuthenticationService;
+    private readonly IUiDispatcher _uiDispatcher;
     private bool _hasInitialized;
+
+    private static readonly string[] DisplayPreviewColors =
+    [
+        "#5B6DF8",
+        "#2AA7A1",
+        "#A768E8",
+        "#F09A43",
+    ];
 
     [ObservableProperty]
     private bool _isLogoutVisible;
@@ -36,25 +47,39 @@ public partial class MainPageModel : ObservableObject
     private string _feedbackText = string.Empty;
 
     [ObservableProperty]
-    private string _primaryStatusLabel = string.Empty;
+    private string _accountStatusText = string.Empty;
 
     [ObservableProperty]
-    private string _primaryStatusText = string.Empty;
+    private string _displaySummaryText = string.Empty;
 
     [ObservableProperty]
-    private string _secondaryStatusLabel = string.Empty;
+    private bool _showDisplaySummaryText;
 
     [ObservableProperty]
-    private string _secondaryStatusText = string.Empty;
+    private string _lastAttemptText = string.Empty;
 
-    public MainPageModel(IOneDriveAuthenticationService oneDriveAuthenticationService)
+    [ObservableProperty]
+    private string _nextAttemptText = string.Empty;
+
+    public ObservableCollection<DisplayPreview> DisplayPreviews { get; } = [];
+
+    public MainPageModel(
+        IOneDriveAuthenticationService oneDriveAuthenticationService,
+        IDeviceDisplayService deviceDisplayService,
+        IUiDispatcher uiDispatcher,
+        ILogger<MainPageModel> logger)
     {
         _oneDriveAuthenticationService = oneDriveAuthenticationService;
+        _deviceDisplayService = deviceDisplayService;
+        _uiDispatcher = uiDispatcher;
+        _logger = logger;
         ApplyScenario(LockPaperScenario.SignedOut);
     }
 
     public async Task InitializeAsync()
     {
+        _logger.LogInformation("Initializing main page model. Already initialized: {HasInitialized}", _hasInitialized);
+
         if (_hasInitialized)
         {
             return;
@@ -66,27 +91,78 @@ public partial class MainPageModel : ObservableObject
 
     public async Task LogOutAsync()
     {
+        _logger.LogInformation("Starting OneDrive sign-out flow.");
         var result = await _oneDriveAuthenticationService.SignOutAsync();
-        HandleSignOutResult(result);
+        _logger.LogInformation("OneDrive sign-out returned status {Status} with resulting state {StateStatus}.", result.Status, result.State.Status);
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(() => HandleSignOutResult(result));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Applying sign-out result on the UI thread failed.");
+            throw;
+        }
     }
 
     [RelayCommand]
     private async Task PrimaryActionAsync()
     {
-        ApplyScenario(LockPaperScenario.Connecting);
+        _logger.LogInformation("Primary action invoked. Starting OneDrive sign-in flow.");
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(() => ApplyScenario(LockPaperScenario.Connecting));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Applying the connecting scenario on the UI thread failed.");
+            throw;
+        }
 
         var result = await _oneDriveAuthenticationService.SignInAsync();
-        HandleSignInResult(result);
+        _logger.LogInformation(
+            "OneDrive sign-in returned status {Status} with resulting state {StateStatus} for account {AccountLabel}.",
+            result.Status,
+            result.State.Status,
+            result.State.AccountLabel);
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(() => HandleSignInResult(result));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Applying sign-in result on the UI thread failed. Result status: {Status}, connection state: {StateStatus}.",
+                result.Status,
+                result.State.Status);
+            throw;
+        }
     }
 
     private async Task RefreshConnectionStateAsync()
     {
+        _logger.LogInformation("Refreshing cached OneDrive connection state.");
         var connectionState = await _oneDriveAuthenticationService.GetCurrentConnectionStateAsync();
-        ApplyConnectionState(connectionState);
+        _logger.LogInformation("Fetched cached OneDrive state {StateStatus} for account {AccountLabel}.", connectionState.Status, connectionState.AccountLabel);
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(() => ApplyConnectionState(connectionState));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Applying cached connection state on the UI thread failed.");
+            throw;
+        }
     }
 
     private void ApplyScenario(LockPaperScenario scenario)
     {
+        _logger.LogInformation("Applying UI scenario {Scenario}.", scenario);
         PrimaryActionText = scenario switch
         {
             LockPaperScenario.SignedOut => "Connect to OneDrive",
@@ -127,6 +203,12 @@ public partial class MainPageModel : ObservableObject
             _ => LockPaperScenario.Connected,
         };
 
+        _logger.LogInformation(
+            "Applying connection state {ConnectionStatus}. Derived scenario: {Scenario}. Account label: {AccountLabel}.",
+            connectionState.Status,
+            scenario,
+            connectionState.AccountLabel);
+
         ApplyScenario(scenario);
 
         if (scenario == LockPaperScenario.SignedOut)
@@ -134,16 +216,27 @@ public partial class MainPageModel : ObservableObject
             return;
         }
 
-        PrimaryStatusLabel = AccountStatusLabel;
-        PrimaryStatusText = FormatAccountLabel(connectionState.AccountLabel);
-        SecondaryStatusLabel = SessionStatusLabel;
-        SecondaryStatusText = scenario == LockPaperScenario.ReauthenticationRequired
-            ? "Needs sign-in"
-            : "Connected";
+        AccountStatusText = FormatAccountLabel(connectionState.AccountLabel);
+
+        IReadOnlyList<DeviceDisplayInfo> displays;
+        try
+        {
+            displays = _deviceDisplayService.GetDisplays();
+            _logger.LogInformation("Retrieved {DisplayCount} display(s) from the device display service.", displays.Count);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Reading device display details failed.");
+            throw;
+        }
+
+        ApplyDisplaySummary(displays);
+        ApplyAttemptStatus(scenario);
     }
 
     private void HandleSignInResult(OneDriveConnectionOperationResult result)
     {
+        _logger.LogInformation("Handling sign-in result {Status}.", result.Status);
         ApplyConnectionState(result.State);
 
         switch (result.Status)
@@ -162,6 +255,7 @@ public partial class MainPageModel : ObservableObject
 
     private void HandleSignOutResult(OneDriveConnectionOperationResult result)
     {
+        _logger.LogInformation("Handling sign-out result {Status}.", result.Status);
         ApplyConnectionState(result.State);
 
         if (result.Status == OneDriveConnectionOperationStatus.Failed)
@@ -175,10 +269,12 @@ public partial class MainPageModel : ObservableObject
 
     private void ClearStatusSummary()
     {
-        PrimaryStatusLabel = string.Empty;
-        PrimaryStatusText = string.Empty;
-        SecondaryStatusLabel = string.Empty;
-        SecondaryStatusText = string.Empty;
+        AccountStatusText = string.Empty;
+        DisplaySummaryText = string.Empty;
+        ShowDisplaySummaryText = false;
+        LastAttemptText = string.Empty;
+        NextAttemptText = string.Empty;
+        DisplayPreviews.Clear();
     }
 
     private void ClearFeedback()
@@ -191,6 +287,65 @@ public partial class MainPageModel : ObservableObject
     {
         ShowFeedback = true;
         FeedbackText = message;
+    }
+
+    private void ApplyDisplaySummary(IReadOnlyList<DeviceDisplayInfo> displays)
+    {
+        _logger.LogInformation("Applying display summary for {DisplayCount} display(s).", displays.Count);
+
+        if (displays.Count == 0)
+        {
+            DisplaySummaryText = "Display details are not available on this device.";
+            ShowDisplaySummaryText = true;
+            DisplayPreviews.Clear();
+            return;
+        }
+
+        DisplaySummaryText = string.Empty;
+        ShowDisplaySummaryText = false;
+
+        ReplaceDisplayPreviews(displays.Select((display, index) => BuildDisplayPreview(display, index)));
+    }
+
+    private void ApplyAttemptStatus(LockPaperScenario scenario)
+    {
+        if (scenario == LockPaperScenario.ReauthenticationRequired)
+        {
+            LastAttemptText = "Paused until OneDrive is reconnected.";
+            NextAttemptText = "Will resume after you sign in again.";
+            return;
+        }
+
+        LastAttemptText = "No wallpaper change has run yet.";
+        NextAttemptText = "Waiting for wallpaper scheduling.";
+    }
+
+    private void ReplaceDisplayPreviews(IEnumerable<DisplayPreview> previews)
+    {
+        DisplayPreviews.Clear();
+        foreach (var preview in previews)
+        {
+            _logger.LogInformation(
+                "Adding display preview with resolution {ResolutionText}.",
+                preview.ResolutionText);
+            DisplayPreviews.Add(preview);
+        }
+    }
+
+    private static DisplayPreview BuildDisplayPreview(DeviceDisplayInfo display, int index)
+    {
+        var largestDimension = Math.Max(display.PixelWidth, display.PixelHeight);
+        var scale = largestDimension == 0 ? 1d : 108d / largestDimension;
+        var previewWidth = Math.Clamp(Math.Round(display.PixelWidth * scale, 0), 72d, 108d);
+        var previewHeight = Math.Clamp(Math.Round(display.PixelHeight * scale, 0), 56d, 108d);
+
+        return new DisplayPreview
+        {
+            ResolutionText = $"{display.PixelWidth} x {display.PixelHeight}",
+            PreviewColor = DisplayPreviewColors[index % DisplayPreviewColors.Length],
+            PreviewWidth = previewWidth,
+            PreviewHeight = previewHeight,
+        };
     }
 
     private static string BuildSignInFailureMessage(OneDriveConnectionOperationResult result)

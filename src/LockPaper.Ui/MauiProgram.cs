@@ -18,10 +18,13 @@ public static class MauiProgram
             });
 
 #if DEBUG
+        builder.Logging.SetMinimumLevel(LogLevel.Debug);
         builder.Logging.AddDebug();
         builder.Services.AddLogging(configure => configure.AddDebug());
 #endif
 
+        builder.Services.AddSingleton<IDeviceDisplayService, DeviceDisplayService>();
+        builder.Services.AddSingleton<IUiDispatcher, MauiUiDispatcher>();
         builder.Services.AddSingleton<IOneDriveAuthenticationService, OneDriveAuthenticationService>();
         builder.Services.AddSingleton<MainPageModel>();
         builder.Services.AddSingleton<MainPage>();

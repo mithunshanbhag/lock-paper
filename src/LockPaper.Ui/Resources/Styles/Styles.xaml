@@ -137,6 +137,34 @@
            TargetType="Border"
            BasedOn="{StaticResource BaseCardStyle}" />
 
+    <Style x:Key="DisplaySummaryGroupStyle"
+           TargetType="Border">
+        <Setter Property="Background"
+                Value="#F7F9FD" />
+        <Setter Property="Padding"
+                Value="12" />
+        <Setter Property="Stroke"
+                Value="{StaticResource CardBorderColor}" />
+        <Setter Property="StrokeShape"
+                Value="RoundRectangle 16" />
+        <Setter Property="StrokeThickness"
+                Value="1" />
+    </Style>
+
+    <Style x:Key="DisplayPreviewCardStyle"
+           TargetType="Border">
+        <Setter Property="Background"
+                Value="White" />
+        <Setter Property="Padding"
+                Value="12" />
+        <Setter Property="Stroke"
+                Value="{StaticResource CardBorderColor}" />
+        <Setter Property="StrokeShape"
+                Value="RoundRectangle 16" />
+        <Setter Property="StrokeThickness"
+                Value="1" />
+    </Style>
+
     <Style x:Key="PlaceholderCardStyle"
            TargetType="Border"
            BasedOn="{StaticResource BaseCardStyle}" />
@@ -185,6 +213,34 @@
                 Value="1.3" />
         <Setter Property="TextColor"
                 Value="{StaticResource CardTextColor}" />
+    </Style>
+
+    <Style x:Key="CardSummaryLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                Value="14" />
+        <Setter Property="LineHeight"
+                Value="1.4" />
+        <Setter Property="TextColor"
+                Value="{StaticResource MutedTextColor}" />
+    </Style>
+
+    <Style x:Key="DisplayPreviewResolutionLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                Value="12" />
+        <Setter Property="FontAttributes"
+                Value="Bold" />
+        <Setter Property="LineHeight"
+                Value="1.15" />
+        <Setter Property="TextColor"
+                Value="White" />
+        <Setter Property="HorizontalTextAlignment"
+                Value="Center" />
+        <Setter Property="VerticalTextAlignment"
+                Value="Center" />
+        <Setter Property="LineBreakMode"
+                Value="WordWrap" />
     </Style>
 
     <Style x:Key="PlaceholderPickerStyle"

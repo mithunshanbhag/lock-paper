@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:LockPaper.Ui.Misc.Converters"
+             xmlns:models="clr-namespace:LockPaper.Ui.Models"
              xmlns:pageModels="clr-namespace:LockPaper.Ui.PageModels"
              x:Class="LockPaper.Ui.Pages.MainPage"
              x:DataType="pageModels:MainPageModel"
              Title="LockPaper"
              Shell.NavBarIsVisible="False"
-              BackgroundColor="{StaticResource PageBackground}">
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <ContentPage.Resources>
+        <converters:HexColorToBrushConverter x:Key="HexColorToBrushConverter" />
+    </ContentPage.Resources>
 
     <ScrollView>
         <Grid Padding="{StaticResource ScreenPadding}"
@@ -66,18 +72,63 @@
 
                     <Border Style="{StaticResource StatusCardStyle}">
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="{Binding PrimaryStatusLabel}"
+                            <Label Text="Microsoft account"
                                    Style="{StaticResource SectionLabelStyle}" />
-                            <Label Text="{Binding PrimaryStatusText}"
+                            <Label Text="{Binding AccountStatusText}"
+                                    Style="{StaticResource CardValueLabelStyle}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Style="{StaticResource StatusCardStyle}">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="Display summary"
+                                    Style="{StaticResource SectionLabelStyle}" />
+                            <Label Text="{Binding DisplaySummaryText}"
+                                   Style="{StaticResource CardSummaryLabelStyle}"
+                                   IsVisible="{Binding ShowDisplaySummaryText}" />
+
+                            <Border Style="{StaticResource DisplaySummaryGroupStyle}">
+                                <FlexLayout BindableLayout.ItemsSource="{Binding DisplayPreviews}"
+                                            Wrap="Wrap"
+                                            Direction="Row"
+                                            AlignItems="Start"
+                                            JustifyContent="Start">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="models:DisplayPreview">
+                                            <Border Background="{Binding PreviewColor, Converter={StaticResource HexColorToBrushConverter}}"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 14"
+                                                    WidthRequest="{Binding PreviewWidth}"
+                                                    HeightRequest="{Binding PreviewHeight}"
+                                                    Margin="0,0,12,12"
+                                                    Padding="8"
+                                                    HorizontalOptions="Center">
+                                                <Label Text="{Binding ResolutionText}"
+                                                       Style="{StaticResource DisplayPreviewResolutionLabelStyle}"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </FlexLayout>
+                            </Border>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Style="{StaticResource StatusCardStyle}">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Last attempt"
+                                   Style="{StaticResource SectionLabelStyle}" />
+                            <Label Text="{Binding LastAttemptText}"
                                    Style="{StaticResource CardValueLabelStyle}" />
                         </VerticalStackLayout>
                     </Border>
 
                     <Border Style="{StaticResource StatusCardStyle}">
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="{Binding SecondaryStatusLabel}"
+                            <Label Text="Next attempt"
                                    Style="{StaticResource SectionLabelStyle}" />
-                            <Label Text="{Binding SecondaryStatusText}"
+                            <Label Text="{Binding NextAttemptText}"
                                    Style="{StaticResource CardValueLabelStyle}" />
                         </VerticalStackLayout>
                     </Border>

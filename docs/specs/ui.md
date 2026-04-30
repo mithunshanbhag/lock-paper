@@ -27,9 +27,10 @@ Required elements:
 - App title.
 - A lightweight logout affordance next to the app title, such as a green tick icon.
 - Primary action button.
-- Compact status summary showing:
-  - the last attempt, with a lightweight success/failure indicator
-  - next scheduled attempt target or scheduling note
+- A **Microsoft account** card showing the connected personal account label.
+- A single **Display summary** card showing every attached display together inside that card as colored rectangles with the display resolution shown inside each rectangle.
+- A **Last attempt** card with a lightweight success/failure or pending indicator.
+- A **Next attempt** card with the next scheduled attempt target or an honest scheduling note.
 
 ### 3. Problem states
 
@@ -40,6 +41,7 @@ The connected/disconnected screen should adapt to these situations instead of br
 - **Album empty or ineligible** - explain that usable photos are required.
 - **Change in progress** - disable the primary button and show progress text.
 - **Last attempt failed** - show a concise error summary and let the user retry.
+- **Wallpaper scheduling not ready yet** - keep the last-attempt and next-attempt cards visible with honest placeholder text instead of hiding them.
 
 ## Layout guidance
 
@@ -47,6 +49,8 @@ The connected/disconnected screen should adapt to these situations instead of br
 - Keep the main action visible without scrolling on common phone-sized dimensions.
 - Use a clean, card-based layout inspired by MudBlazor patterns.
 - Prioritize one clear primary action and only the few status fields the user actually needs.
+- Keep every detected display inside the same display-summary card rather than splitting them into separate status cards.
+- Let the display-summary card wrap or stack its monitor rectangles as needed while staying readable in the portrait shell.
 - Avoid extra surrounding presentation elements in the mockups; focus on the screen itself.
 
 ## Content guidance
@@ -55,6 +59,8 @@ The connected/disconnected screen should adapt to these situations instead of br
 - Avoid implementation jargon such as "Graph API" or "background worker" in the main UI.
 - Present scheduling honestly as **best effort**.
 - Display all times using the current device's local time.
+- Use **screen** when only one display is present and **displays** when more than one is present.
+- Do not add extra helper copy, primary/secondary labels, or monitor metadata when the rectangles already communicate the display summary clearly.
 - Do not imply that desktop wallpaper is managed in v1.
 
 ## Interaction rules
