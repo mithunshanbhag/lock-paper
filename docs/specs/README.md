@@ -4,6 +4,22 @@ LockPaper is a cross-platform app for **Windows** and **Android** that updates a
 
 >This app is intended for an audience of one: basically me. So the product should favor a very minimal UI and low ceremony over broad configurability.
 
+## Current UI placeholders
+
+These placeholder screenshots were generated from the current HTML mockups and are here to keep the product spec visually anchored while the app UI is still being implemented.
+
+### Disconnected state
+
+![LockPaper disconnected mockup placeholder](../assets/lockpaper-disconnected-mockup.png)
+
+Source mockup: `docs/ui-mockups/LockPaperDisconnected/index.html`
+
+### Connected state
+
+![LockPaper connected mockup placeholder](../assets/lockpaper-connected-mockup.png)
+
+Source mockup: `docs/ui-mockups/LockPaperConnected/index.html`
+
 ## Product goals
 
 - Make lock-screen rotation from OneDrive feel automatic and low-maintenance.
