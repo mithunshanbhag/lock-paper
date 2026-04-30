@@ -69,7 +69,8 @@ public class MainPageModelTests
         Assert.Equal("Waiting for wallpaper scheduling.", model.NextAttemptText);
         Assert.Single(model.DisplayPreviews);
         Assert.Equal("1080 x 1920", model.DisplayPreviews[0].ResolutionText);
-        Assert.Equal(2, dispatcher.DispatchCount);
+        Assert.False(model.DisplayPreviews[0].ShowWallpaperThumbnail);
+        Assert.Equal(3, dispatcher.DispatchCount);
     }
 
     [Fact]
@@ -93,7 +94,7 @@ public class MainPageModelTests
         Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplaySummaryText);
-        Assert.Equal(3, dispatcher.DispatchCount);
+        Assert.Equal(4, dispatcher.DispatchCount);
     }
 
     [Fact]
@@ -122,14 +123,14 @@ public class MainPageModelTests
         Assert.Equal("family@example.com", model.AccountStatusText);
         Assert.Equal("Checking matching albums...", model.AlbumStatusText);
         Assert.False(model.ShowFeedback);
-        Assert.Equal(2, dispatcher.DispatchCount);
+        Assert.Equal(3, dispatcher.DispatchCount);
 
         albumDiscoveryCompletionSource.SetResult(OneDriveAlbumDiscoveryResult.Succeeded(["lockpaper"]));
 
         await commandTask;
 
         Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
-        Assert.Equal(3, dispatcher.DispatchCount);
+        Assert.Equal(4, dispatcher.DispatchCount);
     }
 
     #endregion
@@ -237,7 +238,7 @@ public class MainPageModelTests
         Assert.Contains("lockpaper", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Waiting for a matching OneDrive album.", model.LastAttemptText);
         Assert.Equal("Will resume after a matching album is available.", model.NextAttemptText);
-        Assert.Equal(3, dispatcher.DispatchCount);
+        Assert.Equal(4, dispatcher.DispatchCount);
     }
 
     #endregion
@@ -275,7 +276,7 @@ public class MainPageModelTests
         Assert.Equal(string.Empty, model.LastAttemptText);
         Assert.Equal(string.Empty, model.NextAttemptText);
         Assert.Empty(model.DisplayPreviews);
-        Assert.Equal(3, dispatcher.DispatchCount);
+        Assert.Equal(4, dispatcher.DispatchCount);
     }
 
     [Fact]
@@ -322,7 +323,54 @@ public class MainPageModelTests
         Assert.Equal("1080 x 1920", model.DisplayPreviews[1].ResolutionText);
         Assert.Equal(108d, model.DisplayPreviews[0].PreviewWidth);
         Assert.True(model.DisplayPreviews[1].PreviewHeight > model.DisplayPreviews[1].PreviewWidth);
-        Assert.Equal(2, dispatcher.DispatchCount);
+        Assert.Equal(3, dispatcher.DispatchCount);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenCurrentWallpaperPreviewExists_ShouldShowWallpaperThumbnailOnEachDisplay()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService
+            {
+                CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
+            },
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService
+            {
+                Displays =
+                [
+                    new DeviceDisplayInfo
+                    {
+                        PixelWidth = 2560,
+                        PixelHeight = 1440,
+                        ApproximateDiagonalInches = 27,
+                        IsPrimary = true,
+                    },
+                    new DeviceDisplayInfo
+                    {
+                        PixelWidth = 1080,
+                        PixelHeight = 1920,
+                        ApproximateDiagonalInches = 24,
+                        IsPrimary = false,
+                    },
+                ],
+            },
+            new FakeWallpaperRefreshService
+            {
+                CurrentWallpaperPreviewFilePath = @"C:\temp\existing-lockscreen.jpg",
+            },
+            dispatcher,
+            NullLogger<MainPageModel>.Instance);
+
+        await model.InitializeAsync();
+
+        Assert.Equal(2, model.DisplayPreviews.Count);
+        Assert.All(model.DisplayPreviews, preview =>
+        {
+            Assert.True(preview.ShowWallpaperThumbnail);
+            Assert.Equal(@"C:\temp\existing-lockscreen.jpg", preview.WallpaperThumbnailPath);
+        });
     }
 
     [Fact]
@@ -339,7 +387,8 @@ public class MainPageModelTests
                 DateTimeOffset.Parse("2026-04-30T21:15:00+05:30"),
                 1,
                 "lockpaper",
-                "sunrise.jpg"),
+                "sunrise.jpg",
+                @"C:\temp\updated-lockscreen.jpg"),
         };
         var model = new MainPageModel(
             authenticationService,
@@ -359,6 +408,11 @@ public class MainPageModelTests
         Assert.Contains("sunrise.jpg", model.LastAttemptText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("lockpaper", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Waiting for wallpaper scheduling.", model.NextAttemptText);
+        Assert.All(model.DisplayPreviews, preview =>
+        {
+            Assert.True(preview.ShowWallpaperThumbnail);
+            Assert.Equal(@"C:\temp\updated-lockscreen.jpg", preview.WallpaperThumbnailPath);
+        });
     }
 
     [Fact]
@@ -492,6 +546,8 @@ public class MainPageModelTests
 
     private sealed class FakeWallpaperRefreshService : IWallpaperRefreshService
     {
+        public string? CurrentWallpaperPreviewFilePath { get; set; }
+
         public WallpaperRefreshResult RefreshResult { get; set; } =
             WallpaperRefreshResult.Succeeded(DateTimeOffset.Now, 1, "lockpaper", "sunrise.jpg");
 
@@ -502,6 +558,9 @@ public class MainPageModelTests
             RefreshCallCount++;
             return Task.FromResult(RefreshResult);
         }
+
+        public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(CurrentWallpaperPreviewFilePath);
     }
 
     private sealed class FakeUiDispatcher : IUiDispatcher

@@ -12,13 +12,16 @@ public sealed class WallpaperRefreshResult
 
     public string PhotoName { get; init; } = string.Empty;
 
+    public string AppliedWallpaperFilePath { get; init; } = string.Empty;
+
     public string ErrorMessage { get; init; } = string.Empty;
 
     public static WallpaperRefreshResult Succeeded(
         DateTimeOffset attemptedAtLocal,
         int matchingAlbumCount,
         string albumName,
-        string photoName) =>
+        string photoName,
+        string appliedWallpaperFilePath = "") =>
         new()
         {
             Status = WallpaperRefreshStatus.Succeeded,
@@ -26,6 +29,7 @@ public sealed class WallpaperRefreshResult
             MatchingAlbumCount = matchingAlbumCount,
             AlbumName = albumName,
             PhotoName = photoName,
+            AppliedWallpaperFilePath = appliedWallpaperFilePath,
         };
 
     public static WallpaperRefreshResult NoMatchingAlbums(DateTimeOffset attemptedAtLocal) =>

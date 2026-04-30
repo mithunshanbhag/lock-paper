@@ -110,12 +110,21 @@
                                                     WidthRequest="{Binding PreviewWidth}"
                                                     HeightRequest="{Binding PreviewHeight}"
                                                     Margin="0,0,12,12"
-                                                    Padding="8"
+                                                    Padding="0"
                                                     HorizontalOptions="Center">
-                                                <Label Text="{Binding ResolutionText}"
-                                                       Style="{StaticResource DisplayPreviewResolutionLabelStyle}"
-                                                       HorizontalOptions="Center"
-                                                       VerticalOptions="Center" />
+                                                <Grid>
+                                                    <Image Source="{Binding WallpaperThumbnailPath}"
+                                                           Aspect="AspectFill"
+                                                           IsVisible="{Binding ShowWallpaperThumbnail}" />
+                                                    <BoxView Color="#66000000"
+                                                             IsVisible="{Binding ShowWallpaperThumbnail}" />
+                                                    <Grid Padding="8">
+                                                        <Label Text="{Binding ResolutionText}"
+                                                               Style="{StaticResource DisplayPreviewResolutionLabelStyle}"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center" />
+                                                    </Grid>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </BindableLayout.ItemTemplate>

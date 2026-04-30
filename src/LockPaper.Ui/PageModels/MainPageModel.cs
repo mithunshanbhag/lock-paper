@@ -20,6 +20,7 @@ public partial class MainPageModel : ObservableObject
     private readonly IWallpaperRefreshService _wallpaperRefreshService;
     private bool _hasInitialized;
     private LockPaperScenario _currentScenario;
+    private string _currentWallpaperPreviewFilePath = string.Empty;
     private WallpaperRefreshResult? _lastWallpaperRefreshResult;
 
     private static readonly string[] DisplayPreviewColors =
@@ -160,6 +161,11 @@ public partial class MainPageModel : ObservableObject
             throw;
         }
 
+        if (result.State.Status != OneDriveConnectionStatus.SignedOut)
+        {
+            await RefreshDisplaySummaryAsync(refreshWallpaperPreview: true);
+        }
+
         await RefreshAlbumDiscoveryAsync(result.State);
     }
 
@@ -177,6 +183,11 @@ public partial class MainPageModel : ObservableObject
         {
             _logger.LogError(exception, "Applying cached connection state on the UI thread failed.");
             throw;
+        }
+
+        if (connectionState.Status != OneDriveConnectionStatus.SignedOut)
+        {
+            await RefreshDisplaySummaryAsync(refreshWallpaperPreview: true);
         }
 
         await RefreshAlbumDiscoveryAsync(connectionState);
@@ -245,19 +256,6 @@ public partial class MainPageModel : ObservableObject
         AccountStatusText = FormatAccountLabel(connectionState.AccountLabel);
         ApplyAlbumStatus(scenario, albumDiscoveryResult);
 
-        IReadOnlyList<DeviceDisplayInfo> displays;
-        try
-        {
-            displays = _deviceDisplayService.GetDisplays();
-            _logger.LogInformation("Retrieved {DisplayCount} display(s) from the device display service.", displays.Count);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Reading device display details failed.");
-            throw;
-        }
-
-        ApplyDisplaySummary(displays);
         ApplyAttemptStatus(scenario, albumDiscoveryResult);
     }
 
@@ -324,6 +322,7 @@ public partial class MainPageModel : ObservableObject
         LastAttemptText = string.Empty;
         NextAttemptText = string.Empty;
         DisplayPreviews.Clear();
+        _currentWallpaperPreviewFilePath = string.Empty;
         _lastWallpaperRefreshResult = null;
     }
 
@@ -339,7 +338,9 @@ public partial class MainPageModel : ObservableObject
         FeedbackText = message;
     }
 
-    private void ApplyDisplaySummary(IReadOnlyList<DeviceDisplayInfo> displays)
+    private void ApplyDisplaySummary(
+        IReadOnlyList<DeviceDisplayInfo> displays,
+        string wallpaperPreviewFilePath)
     {
         _logger.LogInformation("Applying display summary for {DisplayCount} display(s).", displays.Count);
 
@@ -354,7 +355,7 @@ public partial class MainPageModel : ObservableObject
         DisplaySummaryText = string.Empty;
         ShowDisplaySummaryText = false;
 
-        ReplaceDisplayPreviews(displays.Select((display, index) => BuildDisplayPreview(display, index)));
+        ReplaceDisplayPreviews(displays.Select((display, index) => BuildDisplayPreview(display, index, wallpaperPreviewFilePath)));
     }
 
     private void ApplyAlbumStatus(LockPaperScenario scenario, OneDriveAlbumDiscoveryResult? albumDiscoveryResult)
@@ -472,7 +473,10 @@ public partial class MainPageModel : ObservableObject
         }
     }
 
-    private static DisplayPreview BuildDisplayPreview(DeviceDisplayInfo display, int index)
+    private static DisplayPreview BuildDisplayPreview(
+        DeviceDisplayInfo display,
+        int index,
+        string wallpaperPreviewFilePath)
     {
         var largestDimension = Math.Max(display.PixelWidth, display.PixelHeight);
         var scale = largestDimension == 0 ? 1d : 108d / largestDimension;
@@ -483,6 +487,7 @@ public partial class MainPageModel : ObservableObject
         {
             ResolutionText = $"{display.PixelWidth} x {display.PixelHeight}",
             PreviewColor = DisplayPreviewColors[index % DisplayPreviewColors.Length],
+            WallpaperThumbnailPath = wallpaperPreviewFilePath,
             PreviewWidth = previewWidth,
             PreviewHeight = previewHeight,
         };
@@ -551,6 +556,11 @@ public partial class MainPageModel : ObservableObject
             _logger.LogError(exception, "Applying wallpaper refresh results on the UI thread failed.");
             throw;
         }
+
+        if (result.Status == WallpaperRefreshStatus.Succeeded)
+        {
+            await RefreshDisplaySummaryAsync(refreshWallpaperPreview: false);
+        }
     }
 
     private void BeginWallpaperRefresh()
@@ -569,6 +579,7 @@ public partial class MainPageModel : ObservableObject
         switch (result.Status)
         {
             case WallpaperRefreshStatus.Succeeded:
+                _currentWallpaperPreviewFilePath = result.AppliedWallpaperFilePath;
                 ApplyScenario(LockPaperScenario.Connected);
                 AlbumStatusText = FormatMatchingAlbumCount(result.MatchingAlbumCount);
                 ApplyWallpaperRefreshAttemptStatus(result);
@@ -596,6 +607,50 @@ public partial class MainPageModel : ObservableObject
                 ApplyWallpaperRefreshAttemptStatus(result);
                 SetFeedback(BuildWallpaperRefreshFailureMessage(result));
                 break;
+        }
+    }
+
+    private async Task RefreshDisplaySummaryAsync(bool refreshWallpaperPreview)
+    {
+        IReadOnlyList<DeviceDisplayInfo> displays;
+        try
+        {
+            displays = _deviceDisplayService.GetDisplays();
+            _logger.LogInformation("Retrieved {DisplayCount} display(s) from the device display service.", displays.Count);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Reading device display details failed.");
+            throw;
+        }
+
+        if (refreshWallpaperPreview)
+        {
+            try
+            {
+                _currentWallpaperPreviewFilePath =
+                    await _wallpaperRefreshService.GetCurrentWallpaperPreviewFilePathAsync().ConfigureAwait(false)
+                    ?? string.Empty;
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                or InvalidOperationException
+                or PlatformNotSupportedException
+                or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(exception, "Reading the current lock-screen wallpaper preview failed.");
+                _currentWallpaperPreviewFilePath = string.Empty;
+            }
+        }
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(() => ApplyDisplaySummary(displays, _currentWallpaperPreviewFilePath));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Applying the display summary on the UI thread failed.");
+            throw;
         }
     }
 

@@ -45,7 +45,7 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 - A minimal in-app screen with:
   - current connection/status summary, including the signed-in Microsoft account
   - a wallpaper album status card that shows whether any matching albums are ready
-  - one display summary card that keeps every detected screen, monitor, or display grouped together as simple rectangles with each display's resolution shown inside its rectangle
+  - one display summary card that keeps every detected screen, monitor, or display grouped together as simple rectangles with each display's resolution shown inside its rectangle and the current lock-screen wallpaper thumbnail shown behind the text when one is available
   - a manual "change wallpaper now" action
   - basic success and error feedback
 
@@ -120,7 +120,7 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 - The main screen must show basic status, including:
   - sign-in state through a Microsoft account card
   - wallpaper album state through a dedicated status card
-  - a single display summary card for the attached screen or monitors, using simple colored rectangles with the resolution shown inside each display rectangle
+  - a single display summary card for the attached screen or monitors, using the current lock-screen wallpaper thumbnail when it is available and the existing solid-color fallback otherwise, with the resolution shown inside each display rectangle
   - whether a matching album was found
   - the last change attempt result
   - the next scheduled attempt target or scheduling state

@@ -6,6 +6,16 @@ namespace LockPaper.Ui.Services.Interfaces;
 public interface ILockScreenWallpaperService
 {
     /// <summary>
+    /// Resolves a local file path for the current lock-screen wallpaper preview, if one is available.
+    /// </summary>
+    /// <param name="cancellationToken">A token that can cancel the operation.</param>
+    /// <returns>
+    /// A local file path that the UI can bind to for a wallpaper thumbnail, or <see langword="null" />
+    /// when the current lock-screen wallpaper cannot be resolved.
+    /// </returns>
+    Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Applies the specified image file as the lock-screen wallpaper.
     /// </summary>
     /// <param name="localFilePath">The local image file path.</param>

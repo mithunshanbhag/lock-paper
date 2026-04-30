@@ -12,9 +12,10 @@ public sealed class WallpaperRefreshServiceTests
     [Fact]
     public async Task RefreshAsync_WhenWallpaperApplySucceeds_ShouldReturnSuccess()
     {
+        var lockScreenWallpaperService = new FakeLockScreenWallpaperService();
         var service = new WallpaperRefreshService(
             new FakeDeviceDisplayService(),
-            new FakeLockScreenWallpaperService(),
+            lockScreenWallpaperService,
             new FakeOneDriveWallpaperSourceService(),
             new FakeRandomizer(),
             new FakeWallpaperSelectionService(),
@@ -26,6 +27,27 @@ public sealed class WallpaperRefreshServiceTests
         Assert.Equal(1, result.MatchingAlbumCount);
         Assert.Equal("lockpaper", result.AlbumName);
         Assert.Equal("sunrise.jpg", result.PhotoName);
+        Assert.Equal(lockScreenWallpaperService.AppliedLocalFilePath, result.AppliedWallpaperFilePath);
+        Assert.False(string.IsNullOrWhiteSpace(result.AppliedWallpaperFilePath));
+    }
+
+    [Fact]
+    public async Task GetCurrentWallpaperPreviewFilePathAsync_WhenPreviewExists_ShouldReturnPreviewPath()
+    {
+        var service = new WallpaperRefreshService(
+            new FakeDeviceDisplayService(),
+            new FakeLockScreenWallpaperService
+            {
+                CurrentWallpaperPreviewFilePath = @"C:\temp\current-lockscreen.jpg",
+            },
+            new FakeOneDriveWallpaperSourceService(),
+            new FakeRandomizer(),
+            new FakeWallpaperSelectionService(),
+            NullLogger<WallpaperRefreshService>.Instance);
+
+        var previewFilePath = await service.GetCurrentWallpaperPreviewFilePathAsync();
+
+        Assert.Equal(@"C:\temp\current-lockscreen.jpg", previewFilePath);
     }
 
     #endregion
@@ -117,6 +139,10 @@ public sealed class WallpaperRefreshServiceTests
     {
         public Exception? ApplyException { get; set; }
 
+        public string AppliedLocalFilePath { get; private set; } = string.Empty;
+
+        public string? CurrentWallpaperPreviewFilePath { get; set; }
+
         public Task ApplyAsync(string localFilePath, CancellationToken cancellationToken = default)
         {
             if (ApplyException is not null)
@@ -124,8 +150,12 @@ public sealed class WallpaperRefreshServiceTests
                 throw ApplyException;
             }
 
+            AppliedLocalFilePath = localFilePath;
             return Task.CompletedTask;
         }
+
+        public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(CurrentWallpaperPreviewFilePath);
     }
 
     private sealed class FakeOneDriveWallpaperSourceService : IOneDriveWallpaperSourceService

@@ -14,6 +14,9 @@ public sealed class WallpaperRefreshService(
     IWallpaperSelectionService wallpaperSelectionService,
     ILogger<WallpaperRefreshService> logger) : IWallpaperRefreshService
 {
+    public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default) =>
+        lockScreenWallpaperService.GetCurrentWallpaperPreviewFilePathAsync(cancellationToken);
+
     public async Task<WallpaperRefreshResult> RefreshAsync(CancellationToken cancellationToken = default)
     {
         var attemptedAtLocal = DateTimeOffset.Now;
@@ -84,7 +87,12 @@ public sealed class WallpaperRefreshService(
                     .ApplyAsync(localFilePath, cancellationToken)
                     .ConfigureAwait(false);
 
-                return WallpaperRefreshResult.Succeeded(attemptedAtLocal, matchingAlbumCount, album.Name, selectedPhoto.Name);
+                return WallpaperRefreshResult.Succeeded(
+                    attemptedAtLocal,
+                    matchingAlbumCount,
+                    album.Name,
+                    selectedPhoto.Name,
+                    localFilePath);
             }
 
             return WallpaperRefreshResult.NoEligiblePhotos(attemptedAtLocal, matchingAlbumCount);
