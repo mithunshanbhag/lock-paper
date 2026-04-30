@@ -84,6 +84,88 @@ function Resolve-AppPackageManifestFile {
     return $null
 }
 
+function Copy-AppxRecipeItemToLayout {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Xml.XmlElement] $RecipeItem,
+
+        [Parameter(Mandatory = $true)]
+        [string] $LayoutDir
+    )
+
+    $includePath = $RecipeItem.Attributes['Include'].Value
+    $packagePathNode = $RecipeItem.SelectSingleNode("*[local-name()='PackagePath']")
+
+    if ([string]::IsNullOrWhiteSpace($includePath)) {
+        throw "The app package recipe contains an item without an Include path."
+    }
+
+    if ($null -eq $packagePathNode -or [string]::IsNullOrWhiteSpace($packagePathNode.InnerText)) {
+        throw "The app package recipe item '$includePath' does not declare a PackagePath."
+    }
+
+    if (-not (Test-Path -LiteralPath $includePath)) {
+        throw "The app package recipe item '$includePath' does not exist."
+    }
+
+    $destinationPath = Join-Path $LayoutDir $packagePathNode.InnerText
+    $layoutRootPath = [System.IO.Path]::GetFullPath($LayoutDir)
+    $destinationFullPath = [System.IO.Path]::GetFullPath($destinationPath)
+
+    if (-not $destinationFullPath.StartsWith($layoutRootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to copy package item outside the app package layout: '$destinationFullPath'."
+    }
+
+    $destinationDirectory = Split-Path -Parent $destinationFullPath
+    if (-not (Test-Path -LiteralPath $destinationDirectory)) {
+        New-Item -Path $destinationDirectory -ItemType Directory -Force | Out-Null
+    }
+
+    Copy-Item -LiteralPath $includePath -Destination $destinationFullPath -Force
+}
+
+function Update-AppPackageLayoutFromRecipe {
+    $appProjectRoot = Split-Path $appProjectPath -Parent
+    $appOutputRoot = Join-Path $appProjectRoot "bin\Debug\$windowsTargetFramework\win-x64"
+    $recipePath = Join-Path $appOutputRoot "$appProcessName.build.appxrecipe"
+
+    if (-not (Test-Path -LiteralPath $recipePath)) {
+        throw "Could not find the Windows app package recipe at '$recipePath'."
+    }
+
+    [xml] $recipeXml = Get-Content -Path $recipePath
+    $layoutDirNode = $recipeXml.SelectSingleNode("/*[local-name()='Project']/*[local-name()='PropertyGroup']/*[local-name()='LayoutDir']")
+    if ($null -eq $layoutDirNode -or [string]::IsNullOrWhiteSpace($layoutDirNode.InnerText)) {
+        throw "Could not read the app package layout directory from '$recipePath'."
+    }
+
+    $layoutDir = $layoutDirNode.InnerText
+    $outputRootPath = [System.IO.Path]::GetFullPath($appOutputRoot)
+    $layoutRootPath = [System.IO.Path]::GetFullPath($layoutDir)
+
+    if (-not $layoutRootPath.StartsWith($outputRootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to recreate app package layout outside the app output root: '$layoutRootPath'."
+    }
+
+    if (Test-Path -LiteralPath $layoutRootPath) {
+        Remove-Item -LiteralPath $layoutRootPath -Recurse -Force
+    }
+
+    New-Item -Path $layoutRootPath -ItemType Directory -Force | Out-Null
+
+    $manifestNode = $recipeXml.SelectSingleNode("//*[local-name()='AppXManifest']")
+    if ($null -eq $manifestNode) {
+        throw "Could not find the app manifest item in '$recipePath'."
+    }
+
+    Copy-AppxRecipeItemToLayout -RecipeItem $manifestNode -LayoutDir $layoutRootPath
+
+    $packagedFileNodes = $recipeXml.SelectNodes("//*[local-name()='AppxPackagedFile']")
+    foreach ($packagedFileNode in $packagedFileNodes) {
+        Copy-AppxRecipeItemToLayout -RecipeItem $packagedFileNode -LayoutDir $layoutRootPath
+    }
+}
+
 function Get-AppManifestRegistrationInfo {
     param(
         [Parameter(Mandatory = $true)]
@@ -129,7 +211,7 @@ function Register-AppPackage {
     $appId = $manifestInfo.AppId
 
     Write-Host "Registering Windows app package '$packageName'." -ForegroundColor Cyan
-    Add-AppxPackage -Register $Manifest.FullName -DisableDevelopmentMode
+    Add-AppxPackage -Register $Manifest.FullName
 
     return Get-RegisteredAppUserModelId -PackageName $packageName -AppId $appId
 }
@@ -201,6 +283,7 @@ function Invoke-AppTarget {
     }
 
     Invoke-DotNetCommand -Arguments @('build', $appProjectPath, '--framework', $windowsTargetFramework, '--nologo')
+    Update-AppPackageLayoutFromRecipe
 
     $appPackageManifest = Resolve-AppPackageManifestFile
     if ($null -eq $appPackageManifest) {

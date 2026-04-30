@@ -40,7 +40,6 @@
   </Applications>
 
   <Capabilities>
-    <Capability Name="userProfilePersonalization" />
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
 
