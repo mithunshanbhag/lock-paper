@@ -1,0 +1,16 @@
+name: lock-paper-deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    # do not trigger on changes to documentation
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-template.yml
+    secrets: inherit

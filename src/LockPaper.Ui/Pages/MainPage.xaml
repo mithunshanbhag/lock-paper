@@ -1,103 +1,91 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:pageModels="clr-namespace:LockPaper.Ui.PageModels"             
-             xmlns:models="clr-namespace:LockPaper.Ui.Models"
-             xmlns:controls="clr-namespace:LockPaper.Ui.Pages.Controls"
-             xmlns:pullToRefresh="clr-namespace:Syncfusion.Maui.Toolkit.PullToRefresh;assembly=Syncfusion.Maui.Toolkit"
-             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             xmlns:pageModels="clr-namespace:LockPaper.Ui.PageModels"
              x:Class="LockPaper.Ui.Pages.MainPage"
              x:DataType="pageModels:MainPageModel"
-             x:Name="OverviewPage"
-             Title="{Binding Today}">
+             Title="LockPaper"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{StaticResource PageBackground}">
 
-    <ContentPage.Behaviors>
-        <toolkit:EventToCommandBehavior
-                BindingContext="{Binding Path=BindingContext, Source={x:Reference OverviewPage}, x:DataType=ContentPage}"
-                EventName="NavigatedTo"
-                Command="{Binding NavigatedToCommand}" />
-        <toolkit:EventToCommandBehavior
-                BindingContext="{Binding Path=BindingContext, Source={x:Reference OverviewPage}, x:DataType=ContentPage}"
-                EventName="NavigatedFrom"
-                Command="{Binding NavigatedFromCommand}" />
-        <toolkit:EventToCommandBehavior
-                BindingContext="{Binding Path=BindingContext, Source={x:Reference OverviewPage}, x:DataType=ContentPage}"
-                EventName="Appearing"                
-                Command="{Binding AppearingCommand}" />
-    </ContentPage.Behaviors>
-
-    <ContentPage.Resources>
-        <ResourceDictionary>
-            <toolkit:InvertedBoolConverter x:Key="InvertedBoolConverter" />
-        </ResourceDictionary>
-    </ContentPage.Resources>
-
-    <Grid>
-        <pullToRefresh:SfPullToRefresh
-            IsRefreshing="{Binding IsRefreshing}"
-            RefreshCommand="{Binding RefreshCommand}">
-            <pullToRefresh:SfPullToRefresh.PullableContent>
-                <ScrollView>
-                    <Grid Padding="{StaticResource LayoutPadding}" RowSpacing="{StaticResource LayoutSpacing}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <Label Grid.Row="0" Text="Task Categories" Style="{StaticResource Title2}" SemanticProperties.HeadingLevel="Level1"/>
-                        <controls:CategoryChart Grid.Row="1" />
-                        <Label Grid.Row="2" Text="Projects" Style="{StaticResource Title2}" SemanticProperties.HeadingLevel="Level1"/>
-                        <CollectionView Grid.Row="3" ItemsSource="{Binding Projects}"
-                                        Margin="-7.5,0"
-                                        MinimumHeightRequest="250"
-                                        x:Name="ProjectsCollectionView"
-                                        SelectionMode="Single"
-                                        SelectedItem="{Binding SelectedProject}"
-                                        SelectionChangedCommand="{Binding NavigateToProjectCommand, Source={RelativeSource AncestorType={x:Type pageModels:MainPageModel}}, x:DataType=pageModels:MainPageModel}"
-                                        SelectionChangedCommandParameter="{Binding SelectedProject}">
-                            <CollectionView.ItemsLayout>
-                                <LinearItemsLayout Orientation="Horizontal" ItemSpacing="7.5"/>
-                            </CollectionView.ItemsLayout>
-                            <CollectionView.ItemTemplate>
-                                <DataTemplate x:DataType="models:Project">
-                                    <controls:ProjectCardView WidthRequest="200" />
-                                </DataTemplate>
-                            </CollectionView.ItemTemplate>
-                        </CollectionView>
-                        <Grid Grid.Row="4" MinimumHeightRequest="44">
-                            <Label Text="Tasks" Style="{StaticResource Title2}" VerticalOptions="Center" SemanticProperties.HeadingLevel="Level1"/>
-                            <ImageButton 
-                                Source="{StaticResource IconClean}"
-                                HorizontalOptions="End"
-                                VerticalOptions="Center"
-                                Aspect="Center"
-                                HeightRequest="44"
-                                WidthRequest="44"
-                                IsVisible="{Binding HasCompletedTasks}"
-                                Command="{Binding CleanTasksCommand}"
-                                SemanticProperties.Description="Clean tasks" />
-                        </Grid>
-                        <VerticalStackLayout Grid.Row="5" Spacing="15"
-                            BindableLayout.ItemsSource="{Binding Tasks}">
-                            <BindableLayout.ItemTemplate>
-                                <DataTemplate>
-                                    <controls:TaskView TaskCompletedCommand="{Binding TaskCompletedCommand, Source={RelativeSource AncestorType={x:Type pageModels:MainPageModel}}, x:DataType=pageModels:MainPageModel}" />
-                                </DataTemplate>
-                            </BindableLayout.ItemTemplate>
+    <ScrollView>
+        <Grid Padding="{StaticResource ScreenPadding}"
+              MinimumHeightRequest="760"
+              MaximumWidthRequest="408"
+              HorizontalOptions="Center">
+            <Border Style="{StaticResource DeviceScreenStyle}">
+                <VerticalStackLayout Spacing="18"
+                                     VerticalOptions="Center">
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="16">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="LockPaper"
+                                   Style="{StaticResource AppTitleLabelStyle}"
+                                   SemanticProperties.HeadingLevel="Level1" />
                         </VerticalStackLayout>
-                    </Grid>
-                </ScrollView>
-            </pullToRefresh:SfPullToRefresh.PullableContent>
-        </pullToRefresh:SfPullToRefresh>
 
-        <controls:AddButton 
-            IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
-            Command="{Binding AddTaskCommand}"
-            ToolTipProperties.Text="Add task"
-            SemanticProperties.Description="Add task" />
-    </Grid>
+                        <Button Grid.Column="1"
+                                Text="✓"
+                                Style="{StaticResource StatusIconButtonStyle}"
+                                IsVisible="{Binding IsLogoutVisible}"
+                                Clicked="OnLogoutClicked"
+                                SemanticProperties.Description="Log out" />
+                    </Grid>
+
+                    <Button Text="{Binding PrimaryActionText}"
+                            Style="{StaticResource PrimaryActionButtonStyle}"
+                            Command="{Binding PrimaryActionCommand}"
+                            IsEnabled="{Binding IsPrimaryActionEnabled}" />
+
+                    <Border Style="{StaticResource NoticeCardStyle}"
+                            IsVisible="{Binding ShowNotice}">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="{Binding NoticeTitle}"
+                                   Style="{StaticResource CardTitleLabelStyle}" />
+                            <Label Text="{Binding NoticeMessage}"
+                                   Style="{StaticResource CardBodyLabelStyle}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="12"
+                          IsVisible="{Binding ShowStatusSummary}">
+                        <Border Grid.Column="0"
+                                Style="{StaticResource StatusCardStyle}">
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Last attempt"
+                                       Style="{StaticResource SectionLabelStyle}" />
+                                <Label Text="{Binding LastAttemptText}"
+                                       Style="{StaticResource CardValueLabelStyle}" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border Grid.Column="1"
+                                Style="{StaticResource StatusCardStyle}">
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Next attempt"
+                                       Style="{StaticResource SectionLabelStyle}" />
+                                <Label Text="{Binding NextAttemptText}"
+                                       Style="{StaticResource CardValueLabelStyle}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </Grid>
+
+                    <Border Style="{StaticResource PlaceholderCardStyle}"
+                            IsVisible="{Binding ShowPlaceholderControls}">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="Placeholder state"
+                                   Style="{StaticResource SectionLabelStyle}" />
+                            <Label Text="Use this while the OneDrive flow is still a placeholder."
+                                   Style="{StaticResource CardBodyLabelStyle}" />
+                            <Picker ItemsSource="{Binding PlaceholderStates}"
+                                    SelectedItem="{Binding SelectedPlaceholderState}"
+                                    Style="{StaticResource PlaceholderPickerStyle}"
+                                    Title="Select a placeholder state" />
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+    </ScrollView>
 </ContentPage>

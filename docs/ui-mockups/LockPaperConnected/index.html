@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LockPaper Connected Mockup</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="canvas">
+    <section class="device-frame" aria-label="LockPaper connected screen mockup">
+      <div class="screen">
+        <header class="screen-header">
+          <div class="heading-row">
+            <h1>LockPaper</h1>
+            <button class="logout-trigger" type="button" aria-label="Open log out confirmation dialog">✓</button>
+          </div>
+        </header>
+
+        <button class="primary-action" type="button">Change now</button>
+
+        <section class="status-card">
+          <p class="label">Last attempt</p>
+          <p class="value">✅ Today, 14:00</p>
+        </section>
+
+        <section class="status-card">
+          <p class="label">Next attempt</p>
+          <p class="value">Around 16:00</p>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="confirm-dialog" aria-labelledby="logout-dialog-title">
+    <form method="dialog" class="dialog-card">
+      <h2 id="logout-dialog-title">Log out?</h2>
+      <p>This will disconnect LockPaper from OneDrive on this device.</p>
+      <div class="dialog-actions">
+        <button class="secondary-action" type="submit" value="cancel">Cancel</button>
+        <button class="danger-action" type="submit" value="confirm">Log out</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="script.js"></script>
+</body>
+</html>

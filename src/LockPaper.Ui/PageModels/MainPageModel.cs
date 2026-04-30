@@ -2,176 +2,186 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LockPaper.Ui.Models;
 
-namespace LockPaper.Ui.PageModels
+namespace LockPaper.Ui.PageModels;
+
+public partial class MainPageModel : ObservableObject
 {
-    public partial class MainPageModel : ObservableObject, IProjectTaskPageModel
+    private const string ConnectedPlaceholderState = "Connected";
+    private const string AlbumMissingPlaceholderState = "Album missing";
+    private const string AlbumEmptyPlaceholderState = "Album empty";
+    private const string LastAttemptFailedPlaceholderState = "Last attempt failed";
+
+    private bool _isUpdatingPlaceholderSelection;
+    private LockPaperScenario _placeholderScenario = LockPaperScenario.Connected;
+
+    public IReadOnlyList<string> PlaceholderStates { get; } =
+    [
+        ConnectedPlaceholderState,
+        AlbumMissingPlaceholderState,
+        AlbumEmptyPlaceholderState,
+        LastAttemptFailedPlaceholderState,
+    ];
+
+    [ObservableProperty]
+    private bool _isLogoutVisible;
+
+    [ObservableProperty]
+    private string _primaryActionText = "Connect to OneDrive";
+
+    [ObservableProperty]
+    private bool _isPrimaryActionEnabled = true;
+
+    [ObservableProperty]
+    private bool _showNotice;
+
+    [ObservableProperty]
+    private string _noticeTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _noticeMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _showStatusSummary;
+
+    [ObservableProperty]
+    private string _lastAttemptText = string.Empty;
+
+    [ObservableProperty]
+    private string _nextAttemptText = string.Empty;
+
+    [ObservableProperty]
+    private bool _showPlaceholderControls;
+
+    [ObservableProperty]
+    private string _selectedPlaceholderState = ConnectedPlaceholderState;
+
+    public MainPageModel()
     {
-        private bool _isNavigatedTo;
-        private bool _dataLoaded;
-        private readonly ProjectRepository _projectRepository;
-        private readonly TaskRepository _taskRepository;
-        private readonly CategoryRepository _categoryRepository;
-        private readonly ModalErrorHandler _errorHandler;
-        private readonly SeedDataService _seedDataService;
+        ApplyScenario(LockPaperScenario.SignedOut);
+    }
 
-        [ObservableProperty]
-        private List<CategoryChartData> _todoCategoryData = [];
-
-        [ObservableProperty]
-        private List<Brush> _todoCategoryColors = [];
-
-        [ObservableProperty]
-        private List<ProjectTask> _tasks = [];
-
-        [ObservableProperty]
-        private List<Project> _projects = [];
-
-        [ObservableProperty]
-        bool _isBusy;
-
-        [ObservableProperty]
-        bool _isRefreshing;
-
-        [ObservableProperty]
-        private string _today = DateTime.Now.ToString("dddd, MMM d");
-
-        [ObservableProperty]
-        private Project? selectedProject;
-
-        public bool HasCompletedTasks
-            => Tasks?.Any(t => t.IsCompleted) ?? false;
-
-        public MainPageModel(SeedDataService seedDataService, ProjectRepository projectRepository,
-            TaskRepository taskRepository, CategoryRepository categoryRepository, ModalErrorHandler errorHandler)
+    partial void OnSelectedPlaceholderStateChanged(string value)
+    {
+        if (_isUpdatingPlaceholderSelection)
         {
-            _projectRepository = projectRepository;
-            _taskRepository = taskRepository;
-            _categoryRepository = categoryRepository;
-            _errorHandler = errorHandler;
-            _seedDataService = seedDataService;
+            return;
         }
 
-        private async Task LoadData()
+        _placeholderScenario = ParsePlaceholderScenario(value);
+
+        if (ShowPlaceholderControls)
         {
-            try
-            {
-                IsBusy = true;
-
-                Projects = await _projectRepository.ListAsync();
-
-                var chartData = new List<CategoryChartData>();
-                var chartColors = new List<Brush>();
-
-                var categories = await _categoryRepository.ListAsync();
-                foreach (var category in categories)
-                {
-                    chartColors.Add(category.ColorBrush);
-
-                    var ps = Projects.Where(p => p.CategoryID == category.ID).ToList();
-                    int tasksCount = ps.SelectMany(p => p.Tasks).Count();
-
-                    chartData.Add(new(category.Title, tasksCount));
-                }
-
-                TodoCategoryData = chartData;
-                TodoCategoryColors = chartColors;
-
-                Tasks = await _taskRepository.ListAsync();
-            }
-            finally
-            {
-                IsBusy = false;
-                OnPropertyChanged(nameof(HasCompletedTasks));
-            }
-        }
-
-        private async Task InitData(SeedDataService seedDataService)
-        {
-            bool isSeeded = Preferences.Default.ContainsKey("is_seeded");
-
-            if (!isSeeded)
-            {
-                await seedDataService.LoadSeedDataAsync();
-            }
-
-            Preferences.Default.Set("is_seeded", true);
-            await Refresh();
-        }
-
-        [RelayCommand]
-        private async Task Refresh()
-        {
-            try
-            {
-                IsRefreshing = true;
-                await LoadData();
-            }
-            catch (Exception e)
-            {
-                _errorHandler.HandleError(e);
-            }
-            finally
-            {
-                IsRefreshing = false;
-            }
-        }
-
-        [RelayCommand]
-        private void NavigatedTo() =>
-            _isNavigatedTo = true;
-
-        [RelayCommand]
-        private void NavigatedFrom() =>
-            _isNavigatedTo = false;
-
-        [RelayCommand]
-        private async Task Appearing()
-        {
-            if (!_dataLoaded)
-            {
-                await InitData(_seedDataService);
-                _dataLoaded = true;
-                await Refresh();
-            }
-            // This means we are being navigated to
-            else if (!_isNavigatedTo)
-            {
-                await Refresh();
-            }
-        }
-
-        [RelayCommand]
-        private Task TaskCompleted(ProjectTask task)
-        {
-            OnPropertyChanged(nameof(HasCompletedTasks));
-            return _taskRepository.SaveItemAsync(task);
-        }
-
-        [RelayCommand]
-        private Task AddTask()
-            => Shell.Current.GoToAsync($"task");
-
-        [RelayCommand]
-        private Task? NavigateToProject(Project project)
-            => project is null ? null : Shell.Current.GoToAsync($"project?id={project.ID}");
-
-        [RelayCommand]
-        private Task NavigateToTask(ProjectTask task)
-            => Shell.Current.GoToAsync($"task?id={task.ID}");
-
-        [RelayCommand]
-        private async Task CleanTasks()
-        {
-            var completedTasks = Tasks.Where(t => t.IsCompleted).ToList();
-            foreach (var task in completedTasks)
-            {
-                await _taskRepository.DeleteItemAsync(task);
-                Tasks.Remove(task);
-            }
-
-            OnPropertyChanged(nameof(HasCompletedTasks));
-            Tasks = new(Tasks);
-            await AppShell.DisplayToastAsync("All cleaned up!");
+            ApplyScenario(_placeholderScenario);
         }
     }
+
+    public void LogOut()
+    {
+        SetPlaceholderState(ConnectedPlaceholderState);
+        ApplyScenario(LockPaperScenario.SignedOut);
+    }
+
+    [RelayCommand]
+    private async Task PrimaryActionAsync()
+    {
+        if (!ShowPlaceholderControls)
+        {
+            ApplyScenario(_placeholderScenario);
+            return;
+        }
+
+        await SimulateWallpaperChangeAsync();
+    }
+
+    private async Task SimulateWallpaperChangeAsync()
+    {
+        ApplyScenario(LockPaperScenario.ChangeInProgress);
+        await Task.Delay(900);
+        ApplyScenario(_placeholderScenario);
+    }
+
+    private void ApplyScenario(LockPaperScenario scenario)
+    {
+        var now = DateTime.Now;
+
+        IsLogoutVisible = scenario != LockPaperScenario.SignedOut;
+        PrimaryActionText = scenario switch
+        {
+            LockPaperScenario.SignedOut => "Connect to OneDrive",
+            LockPaperScenario.ChangeInProgress => "Changing now...",
+            _ => "Change now",
+        };
+        IsPrimaryActionEnabled = scenario != LockPaperScenario.ChangeInProgress;
+        ShowStatusSummary = scenario != LockPaperScenario.SignedOut;
+        ShowPlaceholderControls = scenario != LockPaperScenario.SignedOut;
+
+        switch (scenario)
+        {
+            case LockPaperScenario.SignedOut:
+                ShowNotice = false;
+                NoticeTitle = string.Empty;
+                NoticeMessage = string.Empty;
+                LastAttemptText = string.Empty;
+                NextAttemptText = string.Empty;
+                break;
+            case LockPaperScenario.Connected:
+                ShowNotice = false;
+                NoticeTitle = string.Empty;
+                NoticeMessage = string.Empty;
+                LastAttemptText = $"✓ Today, {now:HH:mm}";
+                NextAttemptText = $"Around {GetNextScheduledAttempt(now):HH:mm}";
+                break;
+            case LockPaperScenario.AlbumMissing:
+                ShowNotice = true;
+                NoticeTitle = "Album not found";
+                NoticeMessage = "Create or rename a OneDrive album to lockpaper, lock-paper, or lock paper.";
+                LastAttemptText = $"! Missing album at {now:HH:mm}";
+                NextAttemptText = "After the album is available";
+                break;
+            case LockPaperScenario.AlbumEmpty:
+                ShowNotice = true;
+                NoticeTitle = "No usable photos yet";
+                NoticeMessage = "Add a few image files to the album before trying again.";
+                LastAttemptText = $"! No eligible photos at {now:HH:mm}";
+                NextAttemptText = "After usable photos are added";
+                break;
+            case LockPaperScenario.LastAttemptFailed:
+                ShowNotice = true;
+                NoticeTitle = "Last change failed";
+                NoticeMessage = "LockPaper couldn't reach OneDrive. You can retry whenever you're ready.";
+                LastAttemptText = $"! Retry failed at {now:HH:mm}";
+                NextAttemptText = $"Best effort around {GetNextScheduledAttempt(now):HH:mm}";
+                break;
+            case LockPaperScenario.ChangeInProgress:
+                ShowNotice = true;
+                NoticeTitle = "Changing wallpaper";
+                NoticeMessage = "LockPaper is picking a photo and updating your lock screen.";
+                LastAttemptText = "... Running now";
+                NextAttemptText = "Updating after this run finishes";
+                break;
+        }
+    }
+
+    private static DateTime GetNextScheduledAttempt(DateTime now)
+    {
+        var topOfHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, now.Kind);
+        return topOfHour.AddHours(1);
+    }
+
+    private void SetPlaceholderState(string placeholderState)
+    {
+        _isUpdatingPlaceholderSelection = true;
+        SelectedPlaceholderState = placeholderState;
+        _isUpdatingPlaceholderSelection = false;
+        _placeholderScenario = ParsePlaceholderScenario(placeholderState);
+    }
+
+    private static LockPaperScenario ParsePlaceholderScenario(string value) =>
+        value switch
+        {
+            AlbumMissingPlaceholderState => LockPaperScenario.AlbumMissing,
+            AlbumEmptyPlaceholderState => LockPaperScenario.AlbumEmpty,
+            LastAttemptFailedPlaceholderState => LockPaperScenario.LastAttemptFailed,
+            _ => LockPaperScenario.Connected,
+        };
 }

@@ -4,6 +4,11 @@ namespace LockPaper.Ui
 {
     public partial class App : Application
     {
+#if WINDOWS
+        private const double PortraitWindowWidth = 408;
+        private const double PortraitWindowHeight = 860;
+#endif
+
         public App()
         {
             InitializeComponent();
@@ -11,7 +16,14 @@ namespace LockPaper.Ui
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            return new Window(new AppShell());
+            var window = new Window(new AppShell());
+
+#if WINDOWS
+            window.Width = PortraitWindowWidth;
+            window.Height = PortraitWindowHeight;
+#endif
+
+            return window;
         }
     }
 }

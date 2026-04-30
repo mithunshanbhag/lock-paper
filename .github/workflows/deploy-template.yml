@@ -1,0 +1,94 @@
+name: lock-paper-deploy-template
+
+on:
+  workflow_call:
+
+env:
+  DOTNET_VERSION_10: "10.0.x"
+  ANDROID_TARGET_FRAMEWORK: "net10.0-android"
+  ANDROID_RUNTIME_IDENTIFIER: "android-arm64"
+  WINDOWS_TARGET_FRAMEWORK: "net10.0-windows10.0.19041.0"
+
+jobs:
+  build-deploy-lock-paper-ui:
+    runs-on: windows-2025-vs2026
+    environment: test
+    timeout-minutes: 20
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v6.0.2
+      - name: setup dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION_10 }}
+      - name: dotnet restore
+        run: dotnet restore ./LockPaper.slnx --nologo
+      - name: run unit tests (ui)
+        run: dotnet test ./tests/LockPaper.Ui.UnitTests/LockPaper.Ui.UnitTests.csproj --no-restore --logger trx --results-directory ./tests/LockPaper.Ui.UnitTests/TestResults-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: publish unit test results (ui)
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: LockPaper.Ui.UnitTests
+          path: ./tests/LockPaper.Ui.UnitTests/TestResults-${{ github.run_id }}-${{ github.run_attempt }}
+      # temporarily disable windows build to ensure android build finishes quickly for testing purposes, will re-enable in future PRs
+      # - name: build lock-paper app (windows)
+      #   run: dotnet publish ./src/LockPaper.Ui/LockPaper.Ui.csproj -f ${{ env.WINDOWS_TARGET_FRAMEWORK }} -c Release -o ./Publish/LockPaper.Ui --nologo
+      - name: decode android release keystore
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes(
+            "$env:RUNNER_TEMP\lock-paper-release.jks",
+            [Convert]::FromBase64String("${{ secrets.ANDROID_KEYSTORE_BASE64 }}")
+          )
+      - name: build lock-paper app (android arm64 apk)
+        shell: pwsh
+        run: |
+          dotnet publish ./src/LockPaper.Ui/LockPaper.Ui.csproj `
+            -f ${{ env.ANDROID_TARGET_FRAMEWORK }} `
+            -c Release `
+            -r ${{ env.ANDROID_RUNTIME_IDENTIFIER }} `
+            -p:AndroidPackageFormat=apk `
+            -p:ApplicationVersion=${{ github.run_number }} `
+            -p:AndroidKeyStore=true `
+            -p:AndroidSigningKeyStore="$env:RUNNER_TEMP\lock-paper-release.jks" `
+            -p:AndroidSigningKeyAlias="${{ secrets.ANDROID_KEY_ALIAS }}" `
+            -p:AndroidSigningStorePass="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" `
+            -p:AndroidSigningKeyPass="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" `
+            -o ./Publish/LockPaper.Ui.Android `
+            --nologo
+      - name: delete decoded keystore
+        shell: pwsh
+        run: Remove-Item -Path "$env:RUNNER_TEMP\lock-paper-release.jks" -Force
+      - name: collect lock-paper app artifact (android apk)
+        shell: pwsh
+        run: |
+          $searchPaths = @(
+            "./Publish/LockPaper.Ui.Android",
+            "./src/LockPaper.Ui/bin/Release/${{ env.ANDROID_TARGET_FRAMEWORK }}/publish",
+            "./src/LockPaper.Ui/bin/Release/${{ env.ANDROID_TARGET_FRAMEWORK }}"
+          )
+
+          $apk = $null
+          foreach ($path in $searchPaths) {
+            if (-not (Test-Path $path)) {
+              continue
+            }
+
+            $apk = Get-ChildItem -Path $path -Filter "*-Signed.apk" -File -Recurse | Select-Object -First 1
+            if ($apk) {
+              break
+            }
+          }
+
+          if (-not $apk) {
+            throw "No signed APK was generated."
+          }
+
+          New-Item -ItemType Directory -Path ./Publish/LockPaper.Ui.Android.Apk -Force | Out-Null
+          Copy-Item -Path $apk.FullName -Destination ./Publish/LockPaper.Ui.Android.Apk/
+      - name: publish lock-paper app artifact (android apk)
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: LockPaper.Ui.Android.apk
+          path: ./Publish/LockPaper.Ui.Android.Apk/*.apk
+          if-no-files-found: error
