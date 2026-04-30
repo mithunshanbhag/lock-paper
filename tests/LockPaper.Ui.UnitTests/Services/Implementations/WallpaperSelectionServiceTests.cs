@@ -9,9 +9,9 @@ public class WallpaperSelectionServiceTests
     #region PositiveCases
 
     [Fact]
-    public void SelectBestPhoto_WhenPortraitDisplayExists_ShouldPreferPortraitPhotoWithCloserFit()
+    public void SelectBestPhoto_WhenMatchingOrientationPhotosExist_ShouldRandomizeWithinThatPool()
     {
-        var service = new WallpaperSelectionService(new FakeRandomizer());
+        var service = new WallpaperSelectionService(new FakeRandomizer(1));
         var display = new DeviceDisplayInfo
         {
             PixelWidth = 1080,
@@ -47,13 +47,13 @@ public class WallpaperSelectionServiceTests
         var selectedPhoto = service.SelectBestPhoto(photos, display);
 
         Assert.NotNull(selectedPhoto);
-        Assert.Equal("close-portrait.jpg", selectedPhoto!.Name);
+        Assert.Equal("far-portrait.jpg", selectedPhoto!.Name);
     }
 
     [Fact]
-    public void SelectBestPhoto_WhenNoPhotoCoversDisplay_ShouldPickClosestUndersizedOption()
+    public void SelectBestPhoto_WhenNoPhotoMatchesOrientation_ShouldFallbackToRandomPhoto()
     {
-        var service = new WallpaperSelectionService(new FakeRandomizer());
+        var service = new WallpaperSelectionService(new FakeRandomizer(1));
         var display = new DeviceDisplayInfo
         {
             PixelWidth = 1920,
@@ -65,24 +65,24 @@ public class WallpaperSelectionServiceTests
         [
             new OneDriveWallpaperPhoto
             {
-                Id = "small-close",
-                Name = "small-close.jpg",
-                PixelWidth = 1600,
-                PixelHeight = 900,
+                Id = "portrait-1",
+                Name = "portrait-1.jpg",
+                PixelWidth = 1080,
+                PixelHeight = 1920,
             },
             new OneDriveWallpaperPhoto
             {
-                Id = "small-far",
-                Name = "small-far.jpg",
-                PixelWidth = 1200,
-                PixelHeight = 1200,
+                Id = "portrait-2",
+                Name = "portrait-2.jpg",
+                PixelWidth = 1440,
+                PixelHeight = 2560,
             },
         ];
 
         var selectedPhoto = service.SelectBestPhoto(photos, display);
 
         Assert.NotNull(selectedPhoto);
-        Assert.Equal("small-close.jpg", selectedPhoto!.Name);
+        Assert.Equal("portrait-2.jpg", selectedPhoto!.Name);
     }
 
     #endregion
@@ -108,8 +108,14 @@ public class WallpaperSelectionServiceTests
 
     #endregion
 
-    private sealed class FakeRandomizer : IRandomizer
+    private sealed class FakeRandomizer(int nextValue = 0) : IRandomizer
     {
-        public int Next(int maxExclusive) => 0;
+        public int Next(int maxExclusive)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxExclusive);
+            return nextValue >= maxExclusive
+                ? throw new InvalidOperationException("The fake randomizer was asked for an index outside the configured range.")
+                : nextValue;
+        }
     }
 }

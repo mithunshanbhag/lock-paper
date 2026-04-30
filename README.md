@@ -75,7 +75,7 @@ After launching the app, you can:
 2. sign in with a personal Microsoft account,
 3. let the app check OneDrive for matching wallpaper albums immediately after the connection succeeds,
 4. confirm that the connected state shows the Microsoft account, wallpaper album status, current display summary, and wallpaper attempt status,
-5. use **Refresh lockscreen wallpaper** to pick a best-fit random photo from a matching album and apply it to the lock screen,
+5. use **Refresh lockscreen wallpaper** to pick a random photo from a matching album while preferring the current display orientation and apply it to the lock screen,
 6. review the inline error guidance when no matching OneDrive albums are found or the matching albums do not contain usable photos, and
 7. log out from the title-bar affordance.
 

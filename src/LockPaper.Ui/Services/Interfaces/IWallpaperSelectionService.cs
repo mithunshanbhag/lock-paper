@@ -3,12 +3,12 @@ using LockPaper.Ui.Models;
 namespace LockPaper.Ui.Services.Interfaces;
 
 /// <summary>
-/// Chooses the best-fit photo for a specific display target.
+/// Chooses a random photo for a specific display target while preferring the matching orientation.
 /// </summary>
 public interface IWallpaperSelectionService
 {
     /// <summary>
-    /// Selects a random photo from the best-fit group for the specified display.
+    /// Selects a random photo for the specified display, preferring matching-orientation photos before falling back to any photo.
     /// </summary>
     /// <param name="photos">The candidate photos.</param>
     /// <param name="display">The display target that the photo should fit.</param>
