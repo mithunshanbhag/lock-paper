@@ -1,4 +1,62 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
-    <rect x="0" y="0" width="456" height="456" fill="#512BD4" />
+  <defs>
+    <linearGradient id="bg" x1="70" y1="48" x2="388" y2="412" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#13203A" />
+      <stop offset="52%" stop-color="#244A95" />
+      <stop offset="100%" stop-color="#4EB6D2" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(140 74) rotate(32) scale(226 176)">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="sceneSky" x1="152" y1="118" x2="306" y2="308" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7ECDF7" />
+      <stop offset="54%" stop-color="#4C8FE6" />
+      <stop offset="100%" stop-color="#2C4B96" />
+    </linearGradient>
+    <linearGradient id="sunGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFF6C6" />
+      <stop offset="100%" stop-color="#F4C76B" />
+    </linearGradient>
+    <linearGradient id="paperFold" x1="260" y1="102" x2="322" y2="164" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#DEE9FF" />
+    </linearGradient>
+    <linearGradient id="rearCard" x1="96" y1="144" x2="266" y2="364" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1A294E" />
+      <stop offset="100%" stop-color="#0B1429" />
+    </linearGradient>
+    <linearGradient id="sparkle" x1="312" y1="286" x2="358" y2="332" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F4D78B" />
+    </linearGradient>
+    <clipPath id="sceneClip">
+      <rect x="152" y="118" width="154" height="190" rx="30" />
+    </clipPath>
+  </defs>
+
+  <rect x="0" y="0" width="456" height="456" rx="100" fill="url(#bg)" />
+  <rect x="0" y="0" width="456" height="456" rx="100" fill="url(#glow)" />
+
+  <g opacity="0.28">
+    <rect x="96" y="144" width="170" height="220" rx="41" fill="url(#rearCard)" transform="rotate(-9 181 254)" />
+  </g>
+
+  <rect x="136" y="102" width="186" height="246" rx="46" fill="#FCFEFF" />
+  <path d="M260 102H278C302.301 102 322 121.699 322 146V164L260 102Z" fill="url(#paperFold)" />
+  <path d="M260 102L322 164H293C274.775 164 260 149.225 260 131V102Z" fill="#EEF4FF" />
+  <path d="M260 102L322 164" fill="none" stroke="#D5E0FA" stroke-width="6" stroke-linecap="round" />
+
+  <rect x="152" y="118" width="154" height="190" rx="30" fill="url(#sceneSky)" />
+  <g clip-path="url(#sceneClip)">
+    <circle cx="262" cy="164" r="18" fill="url(#sunGlow)" />
+    <circle cx="262" cy="164" r="32" fill="#FFF0B8" fill-opacity="0.18" />
+    <path d="M128 286C155 248 179 234 201 234C221 234 238 244 255 261C272 279 295 293 335 307V322H128V286Z" fill="#73C6D2" />
+    <path d="M122 304C158 260 198 234 238 234C269 234 299 252 327 284C344 303 366 318 380 324V340H122V304Z" fill="#2A4D95" />
+    <path d="M124 326C163 285 204 264 244 264C280 264 316 282 354 322V360H124V326Z" fill="#17345F" />
+    <path d="M138 184C160 172 180 166 198 166C216 166 240 174 268 188" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="10" stroke-linecap="round" />
+  </g>
+
+  <path d="M335 285L341 302L358 308L341 314L335 331L329 314L312 308L329 302L335 285Z" fill="url(#sparkle)" />
 </svg>

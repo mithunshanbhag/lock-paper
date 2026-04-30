@@ -1,8 +1,50 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
-    <path d="m 105.50037,281.60863 c -2.70293,0 -5.00091,-0.90042 -6.893127,-2.70209 -1.892214,-1.84778 -2.837901,-4.04181 -2.837901,-6.58209 0,-2.58722 0.945687,-4.80389 2.837901,-6.65167 1.892217,-1.84778 4.190197,-2.77167 6.893127,-2.77167 2.74819,0 5.06798,0.92389 6.96019,2.77167 1.93749,1.84778 2.90581,4.06445 2.90581,6.65167 0,2.54028 -0.96832,4.73431 -2.90581,6.58209 -1.89221,1.80167 -4.212,2.70209 -6.96019,2.70209 z" style="fill:#ffffff;fill-rule:nonzero;stroke-width:0.838376" />
-    <path d="M 213.56111,280.08446 H 195.99044 L 149.69953,207.0544 c -1.17121,-1.84778 -2.14037,-3.76515 -2.90581,-5.75126 h -0.40578 c 0.36051,2.12528 0.54076,6.67515 0.54076,13.6496 v 65.13172 h -15.54349 v -99.36009 h 18.71925 l 44.7374,71.29798 c 1.89222,2.95695 3.1087,4.98917 3.64945,6.09751 h 0.26996 c -0.45021,-2.6325 -0.67573,-7.09015 -0.67573,-13.37293 v -64.02256 h 15.47557 z" style="fill:#ffffff;fill-rule:nonzero;stroke-width:0.838376" />
-    <path d="m 289.25134,280.08446 h -54.40052 v -99.36009 h 52.23835 v 13.99669 h -36.15411 v 28.13085 h 33.31621 v 13.9271 h -33.31621 v 29.37835 h 38.31628 z" style="fill:#ffffff;fill-rule:nonzero;stroke-width:0.838376" />
-    <path d="M 366.56466,194.72106 H 338.7222 v 85.3634 h -16.08423 v -85.3634 h -27.77455 v -13.99669 h 71.70124 z" style="fill:#ffffff;fill-rule:nonzero;stroke-width:0.838376" />
+<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sceneSky" x1="142" y1="92" x2="314" y2="308" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7ECDF7" />
+      <stop offset="54%" stop-color="#4C8FE6" />
+      <stop offset="100%" stop-color="#2C4B96" />
+    </linearGradient>
+    <linearGradient id="sunGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFF6C6" />
+      <stop offset="100%" stop-color="#F4C76B" />
+    </linearGradient>
+    <linearGradient id="paperFold" x1="264" y1="74" x2="332" y2="142" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#DEE9FF" />
+    </linearGradient>
+    <linearGradient id="rearCard" x1="80" y1="124" x2="275" y2="374" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#28406F" />
+      <stop offset="100%" stop-color="#172647" />
+    </linearGradient>
+    <linearGradient id="sparkle" x1="320" y1="264" x2="362" y2="306" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F4D78B" />
+    </linearGradient>
+    <clipPath id="sceneClip">
+      <rect x="142" y="92" width="172" height="216" rx="34" />
+    </clipPath>
+  </defs>
+
+  <g opacity="0.42">
+    <rect x="80" y="124" width="195" height="250" rx="48" fill="url(#rearCard)" transform="rotate(-10 177.5 249)" />
+  </g>
+
+  <rect x="124" y="74" width="208" height="278" rx="52" fill="#FCFEFF" />
+  <path d="M264 74H288C312.301 74 332 93.699 332 118V142L264 74Z" fill="url(#paperFold)" />
+  <path d="M264 74L332 142H300C280.118 142 264 125.882 264 106V74Z" fill="#EEF4FF" />
+  <path d="M264 74L332 142" fill="none" stroke="#D5E0FA" stroke-width="7" stroke-linecap="round" />
+
+  <rect x="142" y="92" width="172" height="216" rx="34" fill="url(#sceneSky)" />
+  <g clip-path="url(#sceneClip)">
+    <circle cx="266" cy="148" r="20" fill="url(#sunGlow)" />
+    <circle cx="266" cy="148" r="38" fill="#FFF0B8" fill-opacity="0.18" />
+    <path d="M116 286C145 242 173 224 200 224C223 224 242 236 261 255C280 274 307 291 352 307V326H116V286Z" fill="#73C6D2" />
+    <path d="M108 308C147 258 191 230 235 230C270 230 305 250 337 286C357 307 384 323 400 330V348H108V308Z" fill="#2A4D95" />
+    <path d="M112 332C156 286 202 262 248 262C290 262 330 283 372 328V376H112V332Z" fill="#17345F" />
+    <path d="M126 172C150 160 172 154 194 154C214 154 240 162 270 176" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="11" stroke-linecap="round" />
+  </g>
+
+  <path d="M344 264L350 281L367 287L350 293L344 310L338 293L321 287L338 281L344 264Z" fill="url(#sparkle)" />
 </svg>

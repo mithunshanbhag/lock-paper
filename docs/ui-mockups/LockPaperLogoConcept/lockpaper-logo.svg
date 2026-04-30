@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="154" y1="108" x2="874" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#13203A" />
+      <stop offset="52%" stop-color="#244A95" />
+      <stop offset="100%" stop-color="#4EB6D2" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(316 204) rotate(32) scale(536 420)">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.34" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="sceneSky" x1="344" y1="264" x2="688" y2="688" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7ECDF7" />
+      <stop offset="54%" stop-color="#4C8FE6" />
+      <stop offset="100%" stop-color="#2C4B96" />
+    </linearGradient>
+    <linearGradient id="sunGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFF6C6" />
+      <stop offset="100%" stop-color="#F4C76B" />
+    </linearGradient>
+    <linearGradient id="paperFold" x1="590" y1="236" x2="724" y2="366" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#DEE9FF" />
+    </linearGradient>
+    <linearGradient id="rearCard" x1="270" y1="314" x2="644" y2="826" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1A294E" />
+      <stop offset="100%" stop-color="#0B1429" />
+    </linearGradient>
+    <linearGradient id="sparkle" x1="704" y1="650" x2="812" y2="758" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F4D78B" />
+    </linearGradient>
+    <filter id="shadow" x="172" y="136" width="706" height="796" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feOffset dy="24" />
+      <feGaussianBlur stdDeviation="26" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0666667 0 0 0 0 0.109804 0 0 0 0 0.2 0 0 0 0.24 0" />
+    </filter>
+    <filter id="softShadow" x="116" y="210" width="680" height="696" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feOffset dy="18" />
+      <feGaussianBlur stdDeviation="22" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0470588 0 0 0 0 0.0823529 0 0 0 0 0.176471 0 0 0 0.22 0" />
+    </filter>
+    <filter id="sparkleShadow" x="666" y="622" width="176" height="176" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feOffset dy="10" />
+      <feGaussianBlur stdDeviation="10" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.137255 0 0 0 0 0.25098 0 0 0 0 0.509804 0 0 0 0.22 0" />
+    </filter>
+    <clipPath id="sceneClip">
+      <rect x="344" y="264" width="344" height="424" rx="68" />
+    </clipPath>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" rx="224" fill="url(#bg)" />
+  <rect x="0" y="0" width="1024" height="1024" rx="224" fill="url(#glow)" />
+
+  <g filter="url(#softShadow)" opacity="0.28">
+    <rect x="232" y="300" width="404" height="520" rx="96" fill="url(#rearCard)" transform="rotate(-9 434 560)" />
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="308" y="228" width="416" height="552" rx="102" fill="#FCFEFF" />
+    <path d="M584 228H626C680.124 228 724 271.876 724 326V364L584 228Z" fill="url(#paperFold)" />
+    <path d="M584 228L724 368H654C615.34 368 584 336.66 584 298V228Z" fill="#EEF4FF" />
+    <path d="M584 228L724 368" fill="none" stroke="#D5E0FA" stroke-width="14" stroke-linecap="round" />
+
+    <rect x="344" y="264" width="344" height="424" rx="68" fill="url(#sceneSky)" />
+    <g clip-path="url(#sceneClip)">
+      <circle cx="590" cy="366" r="42" fill="url(#sunGlow)" />
+      <circle cx="590" cy="366" r="78" fill="#FFF0B8" fill-opacity="0.18" />
+      <path d="M290 664C338 594 388 552 440 552C484 552 520 574 558 618C592 656 642 690 742 724V740H290V664Z" fill="#73C6D2" />
+      <path d="M280 700C346 616 418 566 490 566C548 566 602 604 652 664C680 698 722 726 748 736V770H280V700Z" fill="#2A4D95" />
+      <path d="M284 742C356 666 430 628 504 628C572 628 636 662 706 736V804H284V742Z" fill="#17345F" />
+      <path d="M310 410C354 384 394 372 432 372C472 372 520 386 576 416" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="22" stroke-linecap="round" />
+    </g>
+
+    <rect x="344" y="710" width="166" height="24" rx="12" fill="#D9E2F4" />
+    <rect x="344" y="748" width="236" height="18" rx="9" fill="#E7EDF8" />
+  </g>
+
+  <g filter="url(#sparkleShadow)">
+    <path d="M754 646L769 688L811 703L769 718L754 760L739 718L697 703L739 688L754 646Z" fill="url(#sparkle)" />
+  </g>
+</svg>
