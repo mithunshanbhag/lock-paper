@@ -1,3 +1,5 @@
 <Solution>
-  <Project Path="src/LockPaper.Ui/LockPaper.Ui.csproj" Id="219afa68-cebe-456c-9f61-1dab5444dbb6" />
+  <Project Path="src/LockPaper.Ui/LockPaper.Ui.csproj" Id="219afa68-cebe-456c-9f61-1dab5444dbb6">
+    <Deploy Solution="Debug|*" />
+  </Project>
 </Solution>

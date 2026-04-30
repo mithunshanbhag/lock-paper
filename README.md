@@ -17,7 +17,8 @@ LockPaper is a minimal **.NET MAUI** app for **Windows** and **Android** that ch
 - OneDrive album discovery for `lockpaper`, `lock-paper`, or `lock paper`.
 - Lock-screen wallpaper updates only.
 - Orientation-aware photo selection with random fallback.
-- Best-effort hourly refresh plus a manual **Change now** action.
+- Best-fit manual lock-screen refresh from a matching OneDrive album.
+- Best-effort hourly refresh remains pending.
 - A sparse, single-screen UI designed for a tiny personal/family audience.
 
 For the full product definition, see:
@@ -68,16 +69,21 @@ under the app registration's **Mobile and desktop applications** platform and tr
 
 ## 🚀 Usage
 
-The current repository now supports the OneDrive connectivity slice for the v1 screen. After launching the app, you can:
+After launching the app, you can:
 
 1. start from the signed-out state,
 2. sign in with a personal Microsoft account,
 3. let the app check OneDrive for matching wallpaper albums immediately after the connection succeeds,
-4. confirm that the connected state shows the Microsoft account, wallpaper album status, current display summary, and honest attempt placeholders,
-5. review the inline error guidance when no matching OneDrive albums are found, and
-6. log out from the title-bar affordance.
+4. confirm that the connected state shows the Microsoft account, wallpaper album status, current display summary, and wallpaper attempt status,
+5. use **Refresh lockscreen wallpaper** to pick a best-fit random photo from a matching album and apply it to the lock screen,
+6. review the inline error guidance when no matching OneDrive albums are found or the matching albums do not contain usable photos, and
+7. log out from the title-bar affordance.
 
-Wallpaper rotation and background scheduling are still pending. The current UI slice now validates matching OneDrive albums after sign-in, surfaces a dedicated album-status card, and pauses the wallpaper flow with explicit guidance when no matching albums are available.
+Notes:
+
+- Windows uses the supported packaged personalization API for lock-screen updates.
+- Windows applies one shared lock-screen image across all monitors because the platform does not support different lock-screen images per monitor.
+- Hourly scheduling is still pending. The current implementation covers the manual refresh flow and the related status feedback.
 
 ## 🛠️ Build and run locally
 

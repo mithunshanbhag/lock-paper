@@ -23,18 +23,28 @@
     <Compile Include="..\..\src\LockPaper.Ui\Models\DisplaySnapshot.cs" Link="Source\Models\DisplaySnapshot.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\DisplayPreview.cs" Link="Source\Models\DisplayPreview.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\LockPaperScenario.cs" Link="Source\Models\LockPaperScenario.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveWallpaperAlbum.cs" Link="Source\Models\OneDriveWallpaperAlbum.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveWallpaperPhoto.cs" Link="Source\Models\OneDriveWallpaperPhoto.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveAlbumDiscoveryResult.cs" Link="Source\Models\OneDriveAlbumDiscoveryResult.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveAlbumDiscoveryStatus.cs" Link="Source\Models\OneDriveAlbumDiscoveryStatus.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionOperationResult.cs" Link="Source\Models\OneDriveConnectionOperationResult.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionOperationStatus.cs" Link="Source\Models\OneDriveConnectionOperationStatus.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionState.cs" Link="Source\Models\OneDriveConnectionState.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionStatus.cs" Link="Source\Models\OneDriveConnectionStatus.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\WallpaperRefreshResult.cs" Link="Source\Models\WallpaperRefreshResult.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\WallpaperRefreshStatus.cs" Link="Source\Models\WallpaperRefreshStatus.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\PageModels\MainPageModel.cs" Link="Source\PageModels\MainPageModel.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Implementations\OneDriveAlbumDiscoveryService.cs" Link="Source\Services\Implementations\OneDriveAlbumDiscoveryService.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Implementations\OneDriveWallpaperSourceService.cs" Link="Source\Services\Implementations\OneDriveWallpaperSourceService.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Implementations\WallpaperSelectionService.cs" Link="Source\Services\Implementations\WallpaperSelectionService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveAlbumDiscoveryService.cs" Link="Source\Services\Interfaces\IOneDriveAlbumDiscoveryService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IDeviceDisplayService.cs" Link="Source\Services\Interfaces\IDeviceDisplayService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveAuthenticationService.cs" Link="Source\Services\Interfaces\IOneDriveAuthenticationService.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveWallpaperSourceService.cs" Link="Source\Services\Interfaces\IOneDriveWallpaperSourceService.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IRandomizer.cs" Link="Source\Services\Interfaces\IRandomizer.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IUiDispatcher.cs" Link="Source\Services\Interfaces\IUiDispatcher.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IWallpaperRefreshService.cs" Link="Source\Services\Interfaces\IWallpaperRefreshService.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IWallpaperSelectionService.cs" Link="Source\Services\Interfaces\IWallpaperSelectionService.cs" />
   </ItemGroup>
 
   <ItemGroup>

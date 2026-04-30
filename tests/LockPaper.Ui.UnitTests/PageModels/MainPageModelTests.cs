@@ -20,6 +20,7 @@ public class MainPageModelTests
             new FakeOneDriveAuthenticationService(),
             new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
 
@@ -48,12 +49,13 @@ public class MainPageModelTests
             },
             new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
 
         await model.InitializeAsync();
 
-        Assert.Equal("Refresh OneDrive connection", model.PrimaryActionText);
+        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
         Assert.True(model.IsPrimaryActionEnabled);
         Assert.True(model.IsLogoutVisible);
         Assert.False(model.ShowSignedOutLayout);
@@ -78,12 +80,13 @@ public class MainPageModelTests
             new FakeOneDriveAuthenticationService(),
             new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
 
         await model.PrimaryActionCommand.ExecuteAsync(null);
 
-        Assert.Equal("Refresh OneDrive connection", model.PrimaryActionText);
+        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
         Assert.True(model.ShowConnectedLayout);
         Assert.False(model.ShowSignedOutLayout);
         Assert.Equal("family@example.com", model.AccountStatusText);
@@ -105,6 +108,7 @@ public class MainPageModelTests
                 PendingDiscoveryResult = albumDiscoveryCompletionSource.Task,
             },
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
 
@@ -112,7 +116,7 @@ public class MainPageModelTests
 
         await WaitForConditionAsync(() => model.ShowConnectedLayout);
 
-        Assert.Equal("Refresh OneDrive connection", model.PrimaryActionText);
+        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
         Assert.True(model.ShowConnectedLayout);
         Assert.False(model.ShowSignedOutLayout);
         Assert.Equal("family@example.com", model.AccountStatusText);
@@ -142,6 +146,7 @@ public class MainPageModelTests
             },
             new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             new FakeUiDispatcher(),
             NullLogger<MainPageModel>.Instance);
 
@@ -167,6 +172,7 @@ public class MainPageModelTests
             },
             new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
 
@@ -195,6 +201,7 @@ public class MainPageModelTests
             },
             new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             new FakeUiDispatcher(),
             NullLogger<MainPageModel>.Instance);
 
@@ -216,6 +223,7 @@ public class MainPageModelTests
                 DiscoveryResult = OneDriveAlbumDiscoveryResult.NotFound(),
             },
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
 
@@ -249,6 +257,7 @@ public class MainPageModelTests
             service,
             new FakeOneDriveAlbumDiscoveryService(),
             new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
 
@@ -299,6 +308,7 @@ public class MainPageModelTests
                     },
                 ],
             },
+            new FakeWallpaperRefreshService(),
             dispatcher,
             NullLogger<MainPageModel>.Instance);
 
@@ -313,6 +323,42 @@ public class MainPageModelTests
         Assert.Equal(108d, model.DisplayPreviews[0].PreviewWidth);
         Assert.True(model.DisplayPreviews[1].PreviewHeight > model.DisplayPreviews[1].PreviewWidth);
         Assert.Equal(2, dispatcher.DispatchCount);
+    }
+
+    [Fact]
+    public async Task PrimaryActionCommand_WhenConnected_ShouldRefreshWallpaperInsteadOfSigningIn()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var authenticationService = new FakeOneDriveAuthenticationService
+        {
+            CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
+        };
+        var wallpaperRefreshService = new FakeWallpaperRefreshService
+        {
+            RefreshResult = WallpaperRefreshResult.Succeeded(
+                DateTimeOffset.Parse("2026-04-30T21:15:00+05:30"),
+                1,
+                "lockpaper",
+                "sunrise.jpg"),
+        };
+        var model = new MainPageModel(
+            authenticationService,
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService(),
+            wallpaperRefreshService,
+            dispatcher,
+            NullLogger<MainPageModel>.Instance);
+
+        await model.InitializeAsync();
+        await model.PrimaryActionCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, authenticationService.SignInCallCount);
+        Assert.Equal(1, wallpaperRefreshService.RefreshCallCount);
+        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
+        Assert.True(model.IsPrimaryActionEnabled);
+        Assert.Contains("sunrise.jpg", model.LastAttemptText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("lockpaper", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Waiting for wallpaper scheduling.", model.NextAttemptText);
     }
 
     #endregion
@@ -330,17 +376,27 @@ public class MainPageModelTests
 
         public string AccessToken { get; set; } = "fake-token";
 
+        public int SignInCallCount { get; private set; }
+
+        public int SignOutCallCount { get; private set; }
+
         public Task<OneDriveConnectionState> GetCurrentConnectionStateAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(CurrentState);
 
         public Task<string> GetMicrosoftGraphAccessTokenAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(AccessToken);
 
-        public Task<OneDriveConnectionOperationResult> SignInAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(SignInResult);
+        public Task<OneDriveConnectionOperationResult> SignInAsync(CancellationToken cancellationToken = default)
+        {
+            SignInCallCount++;
+            return Task.FromResult(SignInResult);
+        }
 
-        public Task<OneDriveConnectionOperationResult> SignOutAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(SignOutResult);
+        public Task<OneDriveConnectionOperationResult> SignOutAsync(CancellationToken cancellationToken = default)
+        {
+            SignOutCallCount++;
+            return Task.FromResult(SignOutResult);
+        }
     }
 
     private sealed class FakeOneDriveAlbumDiscoveryService : IOneDriveAlbumDiscoveryService
@@ -368,6 +424,20 @@ public class MainPageModelTests
         ];
 
         public IReadOnlyList<DeviceDisplayInfo> GetDisplays() => Displays;
+    }
+
+    private sealed class FakeWallpaperRefreshService : IWallpaperRefreshService
+    {
+        public WallpaperRefreshResult RefreshResult { get; set; } =
+            WallpaperRefreshResult.Succeeded(DateTimeOffset.Now, 1, "lockpaper", "sunrise.jpg");
+
+        public int RefreshCallCount { get; private set; }
+
+        public Task<WallpaperRefreshResult> RefreshAsync(CancellationToken cancellationToken = default)
+        {
+            RefreshCallCount++;
+            return Task.FromResult(RefreshResult);
+        }
     }
 
     private sealed class FakeUiDispatcher : IUiDispatcher

@@ -26,12 +26,17 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<IDeviceDisplayService, DeviceDisplayService>();
         builder.Services.AddSingleton<IUiDispatcher, MauiUiDispatcher>();
+        builder.Services.AddSingleton<IRandomizer, SystemRandomizer>();
         builder.Services.AddSingleton<IOneDriveAuthenticationService, OneDriveAuthenticationService>();
         builder.Services.AddSingleton(new HttpClient
         {
             BaseAddress = new Uri(OneDriveAlbumDiscoveryConstants.GraphBaseAddress),
         });
+        builder.Services.AddSingleton<IOneDriveWallpaperSourceService, OneDriveWallpaperSourceService>();
         builder.Services.AddSingleton<IOneDriveAlbumDiscoveryService, OneDriveAlbumDiscoveryService>();
+        builder.Services.AddSingleton<IWallpaperSelectionService, WallpaperSelectionService>();
+        builder.Services.AddSingleton<ILockScreenWallpaperService, LockScreenWallpaperService>();
+        builder.Services.AddSingleton<IWallpaperRefreshService, WallpaperRefreshService>();
         builder.Services.AddSingleton<MainPageModel>();
         builder.Services.AddSingleton<MainPage>();
 

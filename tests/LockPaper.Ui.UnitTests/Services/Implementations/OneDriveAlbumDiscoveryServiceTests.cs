@@ -22,9 +22,9 @@ public class OneDriveAlbumDiscoveryServiceTests
                     """
                     {
                       "value": [
-                        { "name": "LockPaper", "bundle": { "album": {} } },
-                        { "name": "Summer photos", "bundle": { "album": {} } },
-                        { "name": "lock paper", "bundle": { "album": {} } }
+                        { "id": "album-1", "name": "LockPaper", "bundle": { "album": {} } },
+                        { "id": "album-2", "name": "Summer photos", "bundle": { "album": {} } },
+                        { "id": "album-3", "name": "lock paper", "bundle": { "album": {} } }
                       ]
                     }
                     """,
@@ -63,7 +63,7 @@ public class OneDriveAlbumDiscoveryServiceTests
                         """
                         {
                           "value": [
-                            { "name": "Family", "bundle": { "album": {} } }
+                            { "id": "album-family", "name": "Family", "bundle": { "album": {} } }
                           ],
                           "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/drive/bundles?$skiptoken=next-page"
                         }
@@ -77,7 +77,7 @@ public class OneDriveAlbumDiscoveryServiceTests
                         """
                         {
                           "value": [
-                            { "name": "lockpaper", "bundle": { "album": {} } }
+                            { "id": "album-lockpaper", "name": "lockpaper", "bundle": { "album": {} } }
                           ]
                         }
                         """,
@@ -118,8 +118,8 @@ public class OneDriveAlbumDiscoveryServiceTests
                     """
                     {
                       "value": [
-                        { "name": "Camera Roll", "bundle": { "album": {} } },
-                        { "name": "Wallpaper ideas", "bundle": { "album": {} } }
+                        { "id": "album-camera-roll", "name": "Camera Roll", "bundle": { "album": {} } },
+                        { "id": "album-wallpaper-ideas", "name": "Wallpaper ideas", "bundle": { "album": {} } }
                       ]
                     }
                     """,
@@ -145,8 +145,8 @@ public class OneDriveAlbumDiscoveryServiceTests
                     """
                     {
                       "value": [
-                        { "name": "lockpaper", "bundle": { "childCount": 3 } },
-                        { "name": "lock paper", "folder": { "childCount": 4 } }
+                        { "id": "item-1", "name": "lockpaper", "bundle": { "childCount": 3 } },
+                        { "id": "item-2", "name": "lock paper", "folder": { "childCount": 4 } }
                       ]
                     }
                     """,
@@ -166,14 +166,16 @@ public class OneDriveAlbumDiscoveryServiceTests
     public async Task GetMatchingAlbumsAsync_WhenAccessTokenIsUnavailable_ShouldReturnFailure()
     {
         var service = new OneDriveAlbumDiscoveryService(
-            new HttpClient(new StubHttpMessageHandler(_ => throw new Xunit.Sdk.XunitException("HTTP should not be called.")))
-            {
-                BaseAddress = new Uri("https://graph.microsoft.com/v1.0/"),
-            },
-            new FakeOneDriveAuthenticationService
-            {
-                AccessTokenException = new InvalidOperationException("Sign in again."),
-            },
+            new OneDriveWallpaperSourceService(
+                new HttpClient(new StubHttpMessageHandler(_ => throw new Xunit.Sdk.XunitException("HTTP should not be called.")))
+                {
+                    BaseAddress = new Uri("https://graph.microsoft.com/v1.0/"),
+                },
+                new FakeOneDriveAuthenticationService
+                {
+                    AccessTokenException = new InvalidOperationException("Sign in again."),
+                },
+                NullLogger<OneDriveWallpaperSourceService>.Instance),
             NullLogger<OneDriveAlbumDiscoveryService>.Instance);
 
         var result = await service.GetMatchingAlbumsAsync();
@@ -218,11 +220,13 @@ public class OneDriveAlbumDiscoveryServiceTests
 
     private static OneDriveAlbumDiscoveryService CreateService(StubHttpMessageHandler handler) =>
         new(
-            new HttpClient(handler)
-            {
-                BaseAddress = new Uri("https://graph.microsoft.com/v1.0/"),
-            },
-            new FakeOneDriveAuthenticationService(),
+            new OneDriveWallpaperSourceService(
+                new HttpClient(handler)
+                {
+                    BaseAddress = new Uri("https://graph.microsoft.com/v1.0/"),
+                },
+                new FakeOneDriveAuthenticationService(),
+                NullLogger<OneDriveWallpaperSourceService>.Instance),
             NullLogger<OneDriveAlbumDiscoveryService>.Instance);
 
     private sealed class FakeOneDriveAuthenticationService : IOneDriveAuthenticationService

@@ -65,16 +65,71 @@ function Invoke-TestTarget {
     }
 }
 
-function Get-AppExecutable {
-    $outputRoot = Join-Path (Split-Path $appProjectPath -Parent) "bin\Debug\$windowsTargetFramework"
+function Get-AppPackageManifest {
+    $appOutputRoot = Join-Path (Split-Path $appProjectPath -Parent) "bin\Debug\$windowsTargetFramework"
+    $manifestPath = Join-Path $appOutputRoot 'win-x64\AppX\AppxManifest.xml'
 
-    if (-not (Test-Path $outputRoot)) {
+    if (-not (Test-Path $manifestPath)) {
         return $null
     }
 
-    return Get-ChildItem -Path $outputRoot -Filter "$appProcessName.exe" -Recurse -File |
-        Sort-Object LastWriteTimeUtc -Descending |
+    return Get-Item -Path $manifestPath
+}
+
+function Register-AppPackage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo] $Manifest
+    )
+
+    [xml] $manifestXml = Get-Content -Path $Manifest.FullName
+    $packageName = $manifestXml.Package.Identity.Name
+    $appId = $manifestXml.Package.Applications.Application.Id
+
+    Write-Host "Registering Windows app package '$packageName'." -ForegroundColor Cyan
+    Add-AppxPackage -Register $Manifest.FullName -DisableDevelopmentMode
+
+    $package = Get-AppxPackage -Name $packageName |
+        Where-Object { $_.InstallLocation -ieq $Manifest.DirectoryName } |
         Select-Object -First 1
+
+    if ($null -eq $package) {
+        throw "Could not find registered app package '$packageName' at '$($Manifest.DirectoryName)'."
+    }
+
+    return [PSCustomObject] @{
+        AppId             = $appId
+        PackageFamilyName = $package.PackageFamilyName
+    }
+}
+
+function Get-RunningAppProcess {
+    return Get-Process -Name $appProcessName -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
+function Start-PackagedApp {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $PackageFamilyName,
+
+        [Parameter(Mandatory = $true)]
+        [string] $AppId
+    )
+
+    $appUserModelId = "$PackageFamilyName!$AppId"
+    Start-Process -FilePath "shell:AppsFolder\$appUserModelId"
+
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        Start-Sleep -Milliseconds 500
+
+        $process = Get-RunningAppProcess
+        if ($null -ne $process) {
+            Write-Host "Started $appProcessName (PID $($process.Id))." -ForegroundColor Green
+            return
+        }
+    }
+
+    throw "Launched '$appUserModelId', but no '$appProcessName' process stayed running."
 }
 
 function Invoke-AppTarget {
@@ -86,21 +141,21 @@ function Invoke-AppTarget {
         throw "App project not found at '$appProjectPath'."
     }
 
-    Invoke-DotNetCommand -Arguments @('build', $appProjectPath, '--framework', $windowsTargetFramework, '--nologo')
-
-    $existingProcess = Get-Process -Name $appProcessName -ErrorAction SilentlyContinue | Select-Object -First 1
+    $existingProcess = Get-RunningAppProcess
     if ($null -ne $existingProcess) {
         Write-Host "$appProcessName is already running (PID $($existingProcess.Id))." -ForegroundColor Yellow
         return
     }
 
-    $appExecutable = Get-AppExecutable
-    if ($null -eq $appExecutable) {
-        throw "Could not find '$appProcessName.exe' after building the app."
+    Invoke-DotNetCommand -Arguments @('build', $appProjectPath, '--framework', $windowsTargetFramework, '--nologo')
+
+    $appPackageManifest = Get-AppPackageManifest
+    if ($null -eq $appPackageManifest) {
+        throw "Could not find the Windows app package manifest after building the app."
     }
 
-    $process = Start-Process -FilePath $appExecutable.FullName -WorkingDirectory $appExecutable.DirectoryName -PassThru
-    Write-Host "Started $appProcessName (PID $($process.Id))." -ForegroundColor Green
+    $appPackage = Register-AppPackage -Manifest $appPackageManifest
+    Start-PackagedApp -PackageFamilyName $appPackage.PackageFamilyName -AppId $appPackage.AppId
 }
 
 Push-Location $repoRoot

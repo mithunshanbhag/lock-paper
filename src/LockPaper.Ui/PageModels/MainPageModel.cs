@@ -17,7 +17,10 @@ public partial class MainPageModel : ObservableObject
     private readonly ILogger<MainPageModel> _logger;
     private readonly IOneDriveAuthenticationService _oneDriveAuthenticationService;
     private readonly IUiDispatcher _uiDispatcher;
+    private readonly IWallpaperRefreshService _wallpaperRefreshService;
     private bool _hasInitialized;
+    private LockPaperScenario _currentScenario;
+    private WallpaperRefreshResult? _lastWallpaperRefreshResult;
 
     private static readonly string[] DisplayPreviewColors =
     [
@@ -72,12 +75,14 @@ public partial class MainPageModel : ObservableObject
         IOneDriveAuthenticationService oneDriveAuthenticationService,
         IOneDriveAlbumDiscoveryService oneDriveAlbumDiscoveryService,
         IDeviceDisplayService deviceDisplayService,
+        IWallpaperRefreshService wallpaperRefreshService,
         IUiDispatcher uiDispatcher,
         ILogger<MainPageModel> logger)
     {
         _oneDriveAuthenticationService = oneDriveAuthenticationService;
         _oneDriveAlbumDiscoveryService = oneDriveAlbumDiscoveryService;
         _deviceDisplayService = deviceDisplayService;
+        _wallpaperRefreshService = wallpaperRefreshService;
         _uiDispatcher = uiDispatcher;
         _logger = logger;
         ApplyScenario(LockPaperScenario.SignedOut);
@@ -116,6 +121,12 @@ public partial class MainPageModel : ObservableObject
     [RelayCommand]
     private async Task PrimaryActionAsync()
     {
+        if (_currentScenario == LockPaperScenario.Connected)
+        {
+            await RefreshWallpaperAsync();
+            return;
+        }
+
         _logger.LogInformation("Primary action invoked. Starting OneDrive sign-in flow.");
 
         try
@@ -174,12 +185,13 @@ public partial class MainPageModel : ObservableObject
     private void ApplyScenario(LockPaperScenario scenario)
     {
         _logger.LogInformation("Applying UI scenario {Scenario}.", scenario);
+        _currentScenario = scenario;
         PrimaryActionText = scenario switch
         {
             LockPaperScenario.SignedOut => "Connect to OneDrive",
             LockPaperScenario.Connecting => "Connecting to OneDrive...",
             LockPaperScenario.ReauthenticationRequired => "Reconnect to OneDrive",
-            _ => "Refresh OneDrive connection",
+            _ => "Refresh lockscreen wallpaper",
         };
         IsPrimaryActionEnabled = scenario != LockPaperScenario.Connecting;
         IsLogoutVisible = scenario is LockPaperScenario.Connected or LockPaperScenario.ReauthenticationRequired;
@@ -226,6 +238,7 @@ public partial class MainPageModel : ObservableObject
 
         if (scenario == LockPaperScenario.SignedOut)
         {
+            _lastWallpaperRefreshResult = null;
             return;
         }
 
@@ -311,6 +324,7 @@ public partial class MainPageModel : ObservableObject
         LastAttemptText = string.Empty;
         NextAttemptText = string.Empty;
         DisplayPreviews.Clear();
+        _lastWallpaperRefreshResult = null;
     }
 
     private void ClearFeedback()
@@ -407,8 +421,43 @@ public partial class MainPageModel : ObservableObject
             }
         }
 
+        if (_lastWallpaperRefreshResult is not null)
+        {
+            ApplyWallpaperRefreshAttemptStatus(_lastWallpaperRefreshResult);
+            return;
+        }
+
         LastAttemptText = "No wallpaper change has run yet.";
         NextAttemptText = "Waiting for wallpaper scheduling.";
+    }
+
+    private void ApplyWallpaperRefreshAttemptStatus(WallpaperRefreshResult result)
+    {
+        var attemptedAtText = FormatAttemptTime(result.AttemptedAtLocal);
+
+        switch (result.Status)
+        {
+            case WallpaperRefreshStatus.Succeeded:
+                LastAttemptText = $"Updated at {attemptedAtText} with '{result.PhotoName}' from '{result.AlbumName}'.";
+                NextAttemptText = "Waiting for wallpaper scheduling.";
+                break;
+            case WallpaperRefreshStatus.NoMatchingAlbums:
+                LastAttemptText = $"Couldn't refresh at {attemptedAtText} because no matching OneDrive albums were available.";
+                NextAttemptText = "Will resume after a matching album is available.";
+                break;
+            case WallpaperRefreshStatus.NoEligiblePhotos:
+                LastAttemptText = $"Couldn't refresh at {attemptedAtText} because the matching albums did not contain usable photos.";
+                NextAttemptText = "Will resume after matching albums contain usable photos.";
+                break;
+            case WallpaperRefreshStatus.ReauthenticationRequired:
+                LastAttemptText = "Paused until OneDrive is reconnected.";
+                NextAttemptText = "Will resume after you sign in again.";
+                break;
+            default:
+                LastAttemptText = $"Wallpaper refresh failed at {attemptedAtText}.";
+                NextAttemptText = "Waiting for wallpaper scheduling.";
+                break;
+        }
     }
 
     private void ReplaceDisplayPreviews(IEnumerable<DisplayPreview> previews)
@@ -477,6 +526,79 @@ public partial class MainPageModel : ObservableObject
         }
     }
 
+    private async Task RefreshWallpaperAsync()
+    {
+        _logger.LogInformation("Primary action invoked. Starting manual wallpaper refresh.");
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(BeginWallpaperRefresh);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Preparing the wallpaper refresh state on the UI thread failed.");
+            throw;
+        }
+
+        var result = await _wallpaperRefreshService.RefreshAsync().ConfigureAwait(false);
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(() => HandleWallpaperRefreshResult(result));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Applying wallpaper refresh results on the UI thread failed.");
+            throw;
+        }
+    }
+
+    private void BeginWallpaperRefresh()
+    {
+        IsPrimaryActionEnabled = false;
+        PrimaryActionText = "Refreshing lockscreen wallpaper...";
+        SetFeedback("LockPaper is refreshing the lock-screen wallpaper.");
+    }
+
+    private void HandleWallpaperRefreshResult(WallpaperRefreshResult result)
+    {
+        _logger.LogInformation("Handling wallpaper refresh result {Status}.", result.Status);
+
+        _lastWallpaperRefreshResult = result;
+
+        switch (result.Status)
+        {
+            case WallpaperRefreshStatus.Succeeded:
+                ApplyScenario(LockPaperScenario.Connected);
+                AlbumStatusText = FormatMatchingAlbumCount(result.MatchingAlbumCount);
+                ApplyWallpaperRefreshAttemptStatus(result);
+                SetFeedback($"Updated the lock-screen wallpaper using '{result.PhotoName}' from '{result.AlbumName}'.");
+                break;
+            case WallpaperRefreshStatus.NoMatchingAlbums:
+                ApplyScenario(LockPaperScenario.Connected);
+                AlbumStatusText = "No matching albums found.";
+                ApplyWallpaperRefreshAttemptStatus(result);
+                SetFeedback(BuildNoMatchingAlbumsMessage());
+                break;
+            case WallpaperRefreshStatus.NoEligiblePhotos:
+                ApplyScenario(LockPaperScenario.Connected);
+                AlbumStatusText = BuildNoEligiblePhotosAlbumStatus(result.MatchingAlbumCount);
+                ApplyWallpaperRefreshAttemptStatus(result);
+                SetFeedback("LockPaper found matching albums, but none of them contained usable photos for the lock screen.");
+                break;
+            case WallpaperRefreshStatus.ReauthenticationRequired:
+                ApplyScenario(LockPaperScenario.ReauthenticationRequired);
+                ApplyWallpaperRefreshAttemptStatus(result);
+                SetFeedback(BuildWallpaperRefreshFailureMessage(result));
+                break;
+            default:
+                ApplyScenario(LockPaperScenario.Connected);
+                ApplyWallpaperRefreshAttemptStatus(result);
+                SetFeedback(BuildWallpaperRefreshFailureMessage(result));
+                break;
+        }
+    }
+
     private static string BuildNoMatchingAlbumsMessage() =>
         $"No matching OneDrive albums were found. Create or rename an album to {FormatAlbumNamesForUi()}";
 
@@ -503,6 +625,16 @@ public partial class MainPageModel : ObservableObject
         }
 
         return "LockPaper couldn't read your OneDrive albums. Try again.";
+    }
+
+    private static string BuildWallpaperRefreshFailureMessage(WallpaperRefreshResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+        {
+            return TrimErrorMessage(result.ErrorMessage);
+        }
+
+        return "LockPaper couldn't refresh the lock-screen wallpaper. Try again.";
     }
 
     private static string BuildSignInFailureMessage(OneDriveConnectionOperationResult result)
@@ -583,6 +715,19 @@ public partial class MainPageModel : ObservableObject
 
     private static string FormatAlbumNamesForUi() =>
         $"'{OneDriveAlbumDiscoveryConstants.MatchingAlbumNames[0]}', '{OneDriveAlbumDiscoveryConstants.MatchingAlbumNames[1]}', or '{OneDriveAlbumDiscoveryConstants.MatchingAlbumNames[2]}'.";
+
+    private static string FormatAttemptTime(DateTimeOffset attemptedAtLocal) =>
+        attemptedAtLocal.ToString("t");
+
+    private static string FormatMatchingAlbumCount(int matchingAlbumCount) =>
+        matchingAlbumCount == 1
+            ? "1 matching album is ready."
+            : $"{matchingAlbumCount} matching albums are ready.";
+
+    private static string BuildNoEligiblePhotosAlbumStatus(int matchingAlbumCount) =>
+        matchingAlbumCount <= 1
+            ? "1 matching album was found, but it has no usable photos."
+            : $"{matchingAlbumCount} matching albums were found, but none of them have usable photos.";
 
     private static string FormatAccountLabel(string accountLabel) =>
         string.IsNullOrWhiteSpace(accountLabel)
