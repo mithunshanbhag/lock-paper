@@ -12,3 +12,5 @@
 - Personal-account OneDrive sign-in also depends on the Azure app registration supporting personal Microsoft accounts, allowing public client flows, and having Microsoft Graph delegated permission `Files.Read`.
 - The connected-state screen now checks Microsoft Graph OneDrive album bundles through `src/LockPaper.Ui\Services\Implementations\OneDriveAlbumDiscoveryService.cs` and surfaces a dedicated wallpaper-albums card plus inline guidance when no matching albums are found.
 - `src/LockPaper.Ui\PageModels\MainPageModel.cs` now applies the connected layout as soon as MSAL sign-in succeeds and only fills in the album card afterward, so slow or failing OneDrive album discovery no longer leaves the UI stuck on `Connecting to OneDrive...`.
+- OneDrive photo albums come back through the `bundle.album` facet on `/me/drive/bundles`; album discovery should select `bundle` and filter album bundles locally instead of querying a top-level `album` facet.
+- OneDrive bundle listing is paginated with `@odata.nextLink`, so album discovery must follow every page instead of assuming the first bundle page is complete.

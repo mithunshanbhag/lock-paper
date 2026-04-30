@@ -22,9 +22,9 @@ public class OneDriveAlbumDiscoveryServiceTests
                     """
                     {
                       "value": [
-                        { "name": "LockPaper", "album": {} },
-                        { "name": "Summer photos", "album": {} },
-                        { "name": "lock paper", "album": {} }
+                        { "name": "LockPaper", "bundle": { "album": {} } },
+                        { "name": "Summer photos", "bundle": { "album": {} } },
+                        { "name": "lock paper", "bundle": { "album": {} } }
                       ]
                     }
                     """,
@@ -43,8 +43,65 @@ public class OneDriveAlbumDiscoveryServiceTests
         Assert.Equal("Bearer", handler.LastRequest?.Headers.Authorization?.Scheme);
         Assert.Equal("fake-token", handler.LastRequest?.Headers.Authorization?.Parameter);
         Assert.Equal(
-            "/v1.0/me/drive/bundles?$filter=album ne null&$select=id,name,album",
+            "/v1.0/me/drive/bundles?$filter=bundle/album ne null&$top=200",
             Uri.UnescapeDataString(handler.LastRequest?.RequestUri?.PathAndQuery ?? string.Empty));
+    }
+
+    [Fact]
+    public async Task GetMatchingAlbumsAsync_WhenAlbumIsOnLaterPage_ShouldFollowNextLinkAndReturnMatches()
+    {
+        var responseIndex = 0;
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            responseIndex++;
+
+            return responseIndex switch
+            {
+                1 => new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """
+                        {
+                          "value": [
+                            { "name": "Family", "bundle": { "album": {} } }
+                          ],
+                          "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/drive/bundles?$skiptoken=next-page"
+                        }
+                        """,
+                        Encoding.UTF8,
+                        "application/json"),
+                },
+                2 => new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """
+                        {
+                          "value": [
+                            { "name": "lockpaper", "bundle": { "album": {} } }
+                          ]
+                        }
+                        """,
+                        Encoding.UTF8,
+                        "application/json"),
+                },
+                _ => throw new Xunit.Sdk.XunitException("Unexpected extra request."),
+            };
+        });
+
+        var service = CreateService(handler);
+
+        var result = await service.GetMatchingAlbumsAsync();
+
+        Assert.Equal(OneDriveAlbumDiscoveryStatus.Found, result.Status);
+        Assert.Single(result.MatchingAlbumNames);
+        Assert.Contains("lockpaper", result.MatchingAlbumNames);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(
+            "/v1.0/me/drive/bundles?$filter=bundle/album ne null&$top=200",
+            Uri.UnescapeDataString(handler.Requests[0].RequestUri?.PathAndQuery ?? string.Empty));
+        Assert.Equal(
+            "/v1.0/me/drive/bundles?$skiptoken=next-page",
+            Uri.UnescapeDataString(handler.Requests[1].RequestUri?.PathAndQuery ?? string.Empty));
     }
 
     #endregion
@@ -61,8 +118,35 @@ public class OneDriveAlbumDiscoveryServiceTests
                     """
                     {
                       "value": [
-                        { "name": "Camera Roll", "album": {} },
-                        { "name": "Wallpaper ideas", "album": {} }
+                        { "name": "Camera Roll", "bundle": { "album": {} } },
+                        { "name": "Wallpaper ideas", "bundle": { "album": {} } }
+                      ]
+                    }
+                    """,
+                    Encoding.UTF8,
+                    "application/json"),
+            });
+
+        var service = CreateService(handler);
+
+        var result = await service.GetMatchingAlbumsAsync();
+
+        Assert.Equal(OneDriveAlbumDiscoveryStatus.NotFound, result.Status);
+        Assert.Empty(result.MatchingAlbumNames);
+    }
+
+    [Fact]
+    public async Task GetMatchingAlbumsAsync_WhenMatchingNameIsNotAnAlbumBundle_ShouldReturnNotFound()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """
+                    {
+                      "value": [
+                        { "name": "lockpaper", "bundle": { "childCount": 3 } },
+                        { "name": "lock paper", "folder": { "childCount": 4 } }
                       ]
                     }
                     """,
@@ -169,11 +253,14 @@ public class OneDriveAlbumDiscoveryServiceTests
 
     private sealed class StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler
     {
+        public List<HttpRequestMessage> Requests { get; } = [];
+
         public HttpRequestMessage? LastRequest { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastRequest = CloneRequest(request);
+            Requests.Add(LastRequest);
             return Task.FromResult(responseFactory(request));
         }
 

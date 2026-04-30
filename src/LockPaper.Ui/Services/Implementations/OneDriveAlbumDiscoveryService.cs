@@ -29,29 +29,47 @@ public sealed class OneDriveAlbumDiscoveryService(
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, OneDriveAlbumDiscoveryConstants.AlbumsRequestUri);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            var matchingAlbumNames = new List<string>();
+            var nextRequestUri = OneDriveAlbumDiscoveryConstants.AlbumsRequestUri;
+            var pageCount = 0;
 
-            using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
+            while (!string.IsNullOrWhiteSpace(nextRequestUri))
             {
-                var errorPayload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                logger.LogWarning("OneDrive album discovery failed with HTTP status code {StatusCode}.", response.StatusCode);
+                pageCount++;
 
-                return OneDriveAlbumDiscoveryResult.Failed(
-                    response.StatusCode.ToString(),
-                    ExtractGraphErrorMessage(errorPayload));
+                using var request = new HttpRequestMessage(HttpMethod.Get, nextRequestUri);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorPayload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                    logger.LogWarning("OneDrive album discovery failed with HTTP status code {StatusCode}.", response.StatusCode);
+
+                    return OneDriveAlbumDiscoveryResult.Failed(
+                        response.StatusCode.ToString(),
+                        ExtractGraphErrorMessage(errorPayload));
+                }
+
+                await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                matchingAlbumNames.AddRange(GetMatchingAlbumNames(document.RootElement));
+                nextRequestUri = GetNextPageRequestUri(document.RootElement);
             }
 
-            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
-            var matchingAlbumNames = GetMatchingAlbumNames(document.RootElement);
+            var distinctMatchingAlbumNames = matchingAlbumNames
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
-            logger.LogInformation("OneDrive album discovery found {MatchingAlbumCount} matching album(s).", matchingAlbumNames.Length);
+            logger.LogInformation(
+                "OneDrive album discovery found {MatchingAlbumCount} matching album(s) across {PageCount} page(s).",
+                distinctMatchingAlbumNames.Length,
+                pageCount);
 
-            return matchingAlbumNames.Length == 0
+            return distinctMatchingAlbumNames.Length == 0
                 ? OneDriveAlbumDiscoveryResult.NotFound()
-                : OneDriveAlbumDiscoveryResult.Succeeded(matchingAlbumNames);
+                : OneDriveAlbumDiscoveryResult.Succeeded(distinctMatchingAlbumNames);
         }
         catch (HttpRequestException exception)
         {
@@ -74,12 +92,39 @@ public sealed class OneDriveAlbumDiscoveryService(
 
         return itemsElement
             .EnumerateArray()
+            .Where(IsAlbumItem)
             .Select(GetAlbumName)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Where(name => OneDriveAlbumDiscoveryConstants.MatchingAlbumNames.Contains(name!, StringComparer.OrdinalIgnoreCase))
             .Select(name => name!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static string? GetNextPageRequestUri(JsonElement rootElement)
+    {
+        if (!rootElement.TryGetProperty("@odata.nextLink", out var nextLinkElement))
+        {
+            return null;
+        }
+
+        var nextLink = nextLinkElement.GetString();
+        return string.IsNullOrWhiteSpace(nextLink)
+            ? null
+            : nextLink;
+    }
+
+    private static bool IsAlbumItem(JsonElement itemElement)
+    {
+        if (itemElement.TryGetProperty("bundle", out var bundleElement)
+            && bundleElement.ValueKind == JsonValueKind.Object
+            && bundleElement.TryGetProperty("album", out var albumElement)
+            && albumElement.ValueKind == JsonValueKind.Object)
+        {
+            return true;
+        }
+
+        return itemElement.TryGetProperty("album", out var legacyAlbumElement)
+            && legacyAlbumElement.ValueKind == JsonValueKind.Object;
     }
 
     private static string? GetAlbumName(JsonElement itemElement) =>
