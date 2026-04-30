@@ -1,7 +1,9 @@
-#if WINDOWS
-using Microsoft.UI.Windowing;
-#endif
 using Microsoft.Extensions.Logging;
+#if WINDOWS
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+#endif
+using LockPaper.Ui.Misc.Utilities;
 
 namespace LockPaper.Ui.Services.Implementations;
 
@@ -16,12 +18,21 @@ public sealed class DeviceDisplayService(ILogger<DeviceDisplayService> logger) :
         try
         {
             displays = GetWindowsDisplays();
+            if (displays.Count == 0)
+            {
+                logger.LogWarning(
+                    "Win32 monitor enumeration returned no monitors. Falling back to the MAUI main display info for the current device.");
+                displays =
+                [
+                    GetMainDisplayInfo(),
+                ];
+            }
         }
-        catch (InvalidCastException exception)
+        catch (Win32Exception exception)
         {
             logger.LogWarning(
                 exception,
-                "WinUI display enumeration failed. Falling back to the MAUI main display info for the current device.");
+                "Win32 monitor enumeration failed. Falling back to the MAUI main display info for the current device.");
             displays =
             [
                 GetMainDisplayInfo(),
@@ -53,46 +64,109 @@ public sealed class DeviceDisplayService(ILogger<DeviceDisplayService> logger) :
     private static DeviceDisplayInfo GetMainDisplayInfo()
     {
         var displayInfo = DeviceDisplay.Current.MainDisplayInfo;
-        return new DeviceDisplayInfo
-        {
-            PixelWidth = (int)Math.Round(displayInfo.Width),
-            PixelHeight = (int)Math.Round(displayInfo.Height),
-            ApproximateDiagonalInches = TryCalculateDiagonalInches(
-                (int)Math.Round(displayInfo.Width),
-                (int)Math.Round(displayInfo.Height),
-                displayInfo.Density > 0 ? displayInfo.Density * 160d : null),
-            IsPrimary = true,
-        };
+        return DeviceDisplayInfoFactory.Create(
+            new DisplaySnapshot
+            {
+                PixelWidth = (int)Math.Round(displayInfo.Width),
+                PixelHeight = (int)Math.Round(displayInfo.Height),
+                PositionX = 0,
+                PositionY = 0,
+                PixelsPerInch = displayInfo.Density > 0 ? displayInfo.Density * 160d : null,
+                IsPrimary = true,
+            });
     }
 
 #if WINDOWS
-    private static IReadOnlyList<DeviceDisplayInfo> GetWindowsDisplays() =>
-        DisplayArea.FindAll()
-            .OrderByDescending(displayArea => displayArea.IsPrimary)
-            .ThenBy(displayArea => displayArea.OuterBounds.X)
-            .ThenBy(displayArea => displayArea.OuterBounds.Y)
-            .Select(displayArea => new DeviceDisplayInfo
-            {
-                PixelWidth = displayArea.OuterBounds.Width,
-                PixelHeight = displayArea.OuterBounds.Height,
-                ApproximateDiagonalInches = TryCalculateDiagonalInches(
-                    displayArea.OuterBounds.Width,
-                    displayArea.OuterBounds.Height,
-                    96d),
-                IsPrimary = displayArea.IsPrimary,
-            })
-            .ToArray();
-#endif
-
-    private static double? TryCalculateDiagonalInches(int pixelWidth, int pixelHeight, double? pixelsPerInch)
+    private static IReadOnlyList<DeviceDisplayInfo> GetWindowsDisplays()
     {
-        if (pixelsPerInch is null or <= 0)
+        List<DisplaySnapshot> displaySnapshots = [];
+        Win32Exception? callbackException = null;
+
+        MonitorEnumProc callback = (monitorHandle, _, _, _) =>
         {
-            return null;
+            var monitorInfo = MonitorInfoEx.Create();
+            if (!GetMonitorInfo(monitorHandle, ref monitorInfo))
+            {
+                callbackException = new Win32Exception(Marshal.GetLastWin32Error());
+                return false;
+            }
+
+            var width = monitorInfo.MonitorArea.Right - monitorInfo.MonitorArea.Left;
+            var height = monitorInfo.MonitorArea.Bottom - monitorInfo.MonitorArea.Top;
+            displaySnapshots.Add(
+                new DisplaySnapshot
+                {
+                    PixelWidth = width,
+                    PixelHeight = height,
+                    PositionX = monitorInfo.MonitorArea.Left,
+                    PositionY = monitorInfo.MonitorArea.Top,
+                    PixelsPerInch = 96d,
+                    IsPrimary = (monitorInfo.Flags & MonitorInfoPrimaryFlag) != 0,
+                });
+
+            return true;
+        };
+
+        if (!EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, callback, IntPtr.Zero))
+        {
+            throw callbackException ?? new Win32Exception(Marshal.GetLastWin32Error());
         }
 
-        var widthInches = pixelWidth / pixelsPerInch.Value;
-        var heightInches = pixelHeight / pixelsPerInch.Value;
-        return Math.Sqrt((widthInches * widthInches) + (heightInches * heightInches));
+        return DeviceDisplayInfoFactory.CreateOrdered(displaySnapshots);
     }
+
+    private const uint MonitorInfoPrimaryFlag = 0x1;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumDisplayMonitors(
+        IntPtr hdc,
+        IntPtr clipRectangle,
+        MonitorEnumProc callback,
+        IntPtr data);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(IntPtr monitorHandle, ref MonitorInfoEx monitorInfo);
+
+    private delegate bool MonitorEnumProc(
+        IntPtr monitorHandle,
+        IntPtr deviceContextHandle,
+        IntPtr monitorRectangle,
+        IntPtr data);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRectangle
+    {
+        public int Left;
+
+        public int Top;
+
+        public int Right;
+
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct MonitorInfoEx
+    {
+        public uint Size;
+
+        public NativeRectangle MonitorArea;
+
+        public NativeRectangle WorkArea;
+
+        public uint Flags;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string DeviceName;
+
+        public static MonitorInfoEx Create() =>
+            new()
+            {
+                Size = (uint)Marshal.SizeOf<MonitorInfoEx>(),
+                DeviceName = string.Empty,
+            };
+    }
+#endif
 }

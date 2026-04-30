@@ -17,7 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\DeviceDisplayInfoFactory.cs" Link="Source\Misc\Utilities\DeviceDisplayInfoFactory.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\DeviceDisplayInfo.cs" Link="Source\Models\DeviceDisplayInfo.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\DisplaySnapshot.cs" Link="Source\Models\DisplaySnapshot.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\DisplayPreview.cs" Link="Source\Models\DisplayPreview.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\LockPaperScenario.cs" Link="Source\Models\LockPaperScenario.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionOperationResult.cs" Link="Source\Models\OneDriveConnectionOperationResult.cs" />
