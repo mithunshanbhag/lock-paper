@@ -454,7 +454,7 @@ public partial class MainPageModel : ObservableObject
         catch (Exception exception)
         {
             _logger.LogError(exception, "Loading matching OneDrive albums failed unexpectedly.");
-            return OneDriveAlbumDiscoveryResult.Failed("unexpected_error", "LockPaper couldn't confirm your OneDrive albums yet.");
+            return OneDriveAlbumDiscoveryResult.Failed(exception.GetType().Name, "LockPaper couldn't confirm your OneDrive albums yet.");
         }
     }
 

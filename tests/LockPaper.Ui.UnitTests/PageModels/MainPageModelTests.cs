@@ -7,6 +7,9 @@ namespace LockPaper.Ui.UnitTests.PageModels;
 
 public class MainPageModelTests
 {
+    private const int WaitForConditionMaxAttempts = 100;
+    private const int WaitForConditionDelayMilliseconds = 10;
+
     #region PositiveCases
 
     [Fact]
@@ -381,14 +384,14 @@ public class MainPageModelTests
 
     private static async Task WaitForConditionAsync(Func<bool> condition)
     {
-        for (var attempt = 0; attempt < 100; attempt++)
+        for (var attempt = 0; attempt < WaitForConditionMaxAttempts; attempt++)
         {
             if (condition())
             {
                 return;
             }
 
-            await Task.Delay(10);
+            await Task.Delay(WaitForConditionDelayMilliseconds);
         }
 
         throw new TimeoutException("The expected condition was not reached.");
