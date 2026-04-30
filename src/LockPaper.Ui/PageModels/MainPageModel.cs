@@ -1,26 +1,16 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LockPaper.Ui.Models;
+using LockPaper.Ui.Services.Interfaces;
 
 namespace LockPaper.Ui.PageModels;
 
 public partial class MainPageModel : ObservableObject
 {
-    private const string ConnectedPlaceholderState = "Connected";
-    private const string AlbumMissingPlaceholderState = "Album missing";
-    private const string AlbumEmptyPlaceholderState = "Album empty";
-    private const string LastAttemptFailedPlaceholderState = "Last attempt failed";
+    private const string DefaultAccountLabel = "Personal Microsoft account";
 
-    private bool _isUpdatingPlaceholderSelection;
-    private LockPaperScenario _placeholderScenario = LockPaperScenario.Connected;
-
-    public IReadOnlyList<string> PlaceholderStates { get; } =
-    [
-        ConnectedPlaceholderState,
-        AlbumMissingPlaceholderState,
-        AlbumEmptyPlaceholderState,
-        LastAttemptFailedPlaceholderState,
-    ];
+    private readonly IOneDriveAuthenticationService _oneDriveAuthenticationService;
+    private bool _hasInitialized;
 
     [ObservableProperty]
     private bool _isLogoutVisible;
@@ -44,144 +34,226 @@ public partial class MainPageModel : ObservableObject
     private bool _showStatusSummary;
 
     [ObservableProperty]
-    private string _lastAttemptText = string.Empty;
+    private string _accountSummaryText = string.Empty;
 
     [ObservableProperty]
-    private string _nextAttemptText = string.Empty;
+    private string _connectionSummaryText = string.Empty;
 
-    [ObservableProperty]
-    private bool _showPlaceholderControls;
-
-    [ObservableProperty]
-    private string _selectedPlaceholderState = ConnectedPlaceholderState;
-
-    public MainPageModel()
+    public MainPageModel(IOneDriveAuthenticationService oneDriveAuthenticationService)
     {
+        _oneDriveAuthenticationService = oneDriveAuthenticationService;
         ApplyScenario(LockPaperScenario.SignedOut);
     }
 
-    partial void OnSelectedPlaceholderStateChanged(string value)
+    public async Task InitializeAsync()
     {
-        if (_isUpdatingPlaceholderSelection)
+        if (_hasInitialized)
         {
             return;
         }
 
-        _placeholderScenario = ParsePlaceholderScenario(value);
-
-        if (ShowPlaceholderControls)
-        {
-            ApplyScenario(_placeholderScenario);
-        }
+        _hasInitialized = true;
+        await RefreshConnectionStateAsync();
     }
 
-    public void LogOut()
+    public async Task LogOutAsync()
     {
-        SetPlaceholderState(ConnectedPlaceholderState);
-        ApplyScenario(LockPaperScenario.SignedOut);
+        var result = await _oneDriveAuthenticationService.SignOutAsync();
+        HandleSignOutResult(result);
     }
 
     [RelayCommand]
     private async Task PrimaryActionAsync()
     {
-        if (!ShowPlaceholderControls)
-        {
-            ApplyScenario(_placeholderScenario);
-            return;
-        }
+        ApplyScenario(LockPaperScenario.Connecting);
 
-        await SimulateWallpaperChangeAsync();
+        var result = await _oneDriveAuthenticationService.SignInAsync();
+        HandleSignInResult(result);
     }
 
-    private async Task SimulateWallpaperChangeAsync()
+    private async Task RefreshConnectionStateAsync()
     {
-        ApplyScenario(LockPaperScenario.ChangeInProgress);
-        await Task.Delay(900);
-        ApplyScenario(_placeholderScenario);
+        var connectionState = await _oneDriveAuthenticationService.GetCurrentConnectionStateAsync();
+        ApplyConnectionState(connectionState);
+
+        if (connectionState.Status == OneDriveConnectionStatus.ReauthenticationRequired)
+        {
+            ShowNotice = true;
+            NoticeTitle = "Reconnect to OneDrive";
+            NoticeMessage = "LockPaper needs you to sign in again before it can keep using OneDrive.";
+        }
     }
 
     private void ApplyScenario(LockPaperScenario scenario)
     {
-        var now = DateTime.Now;
-
-        IsLogoutVisible = scenario != LockPaperScenario.SignedOut;
         PrimaryActionText = scenario switch
         {
             LockPaperScenario.SignedOut => "Connect to OneDrive",
-            LockPaperScenario.ChangeInProgress => "Changing now...",
-            _ => "Change now",
+            LockPaperScenario.Connecting => "Connecting to OneDrive...",
+            LockPaperScenario.ReauthenticationRequired => "Reconnect to OneDrive",
+            _ => "Refresh OneDrive connection",
         };
-        IsPrimaryActionEnabled = scenario != LockPaperScenario.ChangeInProgress;
-        ShowStatusSummary = scenario != LockPaperScenario.SignedOut;
-        ShowPlaceholderControls = scenario != LockPaperScenario.SignedOut;
+        IsPrimaryActionEnabled = scenario != LockPaperScenario.Connecting;
+        IsLogoutVisible = scenario is LockPaperScenario.Connected or LockPaperScenario.ReauthenticationRequired;
+        ShowStatusSummary = scenario is not LockPaperScenario.SignedOut and not LockPaperScenario.Connecting;
 
         switch (scenario)
         {
             case LockPaperScenario.SignedOut:
-                ShowNotice = false;
-                NoticeTitle = string.Empty;
-                NoticeMessage = string.Empty;
-                LastAttemptText = string.Empty;
-                NextAttemptText = string.Empty;
+                AccountSummaryText = string.Empty;
+                ConnectionSummaryText = string.Empty;
+                ClearNotice();
                 break;
-            case LockPaperScenario.Connected:
-                ShowNotice = false;
-                NoticeTitle = string.Empty;
-                NoticeMessage = string.Empty;
-                LastAttemptText = $"✓ Today, {now:HH:mm}";
-                NextAttemptText = $"Around {GetNextScheduledAttempt(now):HH:mm}";
-                break;
-            case LockPaperScenario.AlbumMissing:
+            case LockPaperScenario.Connecting:
+                AccountSummaryText = string.Empty;
+                ConnectionSummaryText = string.Empty;
                 ShowNotice = true;
-                NoticeTitle = "Album not found";
-                NoticeMessage = "Create or rename a OneDrive album to lockpaper, lock-paper, or lock paper.";
-                LastAttemptText = $"! Missing album at {now:HH:mm}";
-                NextAttemptText = "After the album is available";
-                break;
-            case LockPaperScenario.AlbumEmpty:
-                ShowNotice = true;
-                NoticeTitle = "No usable photos yet";
-                NoticeMessage = "Add a few image files to the album before trying again.";
-                LastAttemptText = $"! No eligible photos at {now:HH:mm}";
-                NextAttemptText = "After usable photos are added";
-                break;
-            case LockPaperScenario.LastAttemptFailed:
-                ShowNotice = true;
-                NoticeTitle = "Last change failed";
-                NoticeMessage = "LockPaper couldn't reach OneDrive. You can retry whenever you're ready.";
-                LastAttemptText = $"! Retry failed at {now:HH:mm}";
-                NextAttemptText = $"Best effort around {GetNextScheduledAttempt(now):HH:mm}";
-                break;
-            case LockPaperScenario.ChangeInProgress:
-                ShowNotice = true;
-                NoticeTitle = "Changing wallpaper";
-                NoticeMessage = "LockPaper is picking a photo and updating your lock screen.";
-                LastAttemptText = "... Running now";
-                NextAttemptText = "Updating after this run finishes";
+                NoticeTitle = "Connecting to OneDrive";
+                NoticeMessage = "Finish the Microsoft sign-in flow to connect LockPaper.";
                 break;
         }
     }
 
-    private static DateTime GetNextScheduledAttempt(DateTime now)
+    private void ApplyConnectionState(OneDriveConnectionState connectionState)
     {
-        var topOfHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, now.Kind);
-        return topOfHour.AddHours(1);
-    }
-
-    private void SetPlaceholderState(string placeholderState)
-    {
-        _isUpdatingPlaceholderSelection = true;
-        SelectedPlaceholderState = placeholderState;
-        _isUpdatingPlaceholderSelection = false;
-        _placeholderScenario = ParsePlaceholderScenario(placeholderState);
-    }
-
-    private static LockPaperScenario ParsePlaceholderScenario(string value) =>
-        value switch
+        var scenario = connectionState.Status switch
         {
-            AlbumMissingPlaceholderState => LockPaperScenario.AlbumMissing,
-            AlbumEmptyPlaceholderState => LockPaperScenario.AlbumEmpty,
-            LastAttemptFailedPlaceholderState => LockPaperScenario.LastAttemptFailed,
+            OneDriveConnectionStatus.SignedOut => LockPaperScenario.SignedOut,
+            OneDriveConnectionStatus.ReauthenticationRequired => LockPaperScenario.ReauthenticationRequired,
             _ => LockPaperScenario.Connected,
         };
+
+        ApplyScenario(scenario);
+
+        if (scenario == LockPaperScenario.SignedOut)
+        {
+            return;
+        }
+
+        AccountSummaryText = FormatAccountLabel(connectionState.AccountLabel);
+        ConnectionSummaryText = scenario == LockPaperScenario.ReauthenticationRequired
+            ? "Reconnect required"
+            : "Connected";
+    }
+
+    private void HandleSignInResult(OneDriveConnectionOperationResult result)
+    {
+        ApplyConnectionState(result.State);
+
+        switch (result.Status)
+        {
+            case OneDriveConnectionOperationStatus.Succeeded:
+                ClearNotice();
+                break;
+            case OneDriveConnectionOperationStatus.Cancelled:
+                ShowNotice = true;
+                NoticeTitle = "Sign-in cancelled";
+                NoticeMessage = "LockPaper did not change your OneDrive connection.";
+                break;
+            case OneDriveConnectionOperationStatus.Failed:
+                ShowNotice = true;
+                NoticeTitle = "Couldn't connect";
+                NoticeMessage = BuildSignInFailureMessage(result);
+                break;
+        }
+    }
+
+    private void HandleSignOutResult(OneDriveConnectionOperationResult result)
+    {
+        ApplyConnectionState(result.State);
+
+        if (result.Status == OneDriveConnectionOperationStatus.Failed)
+        {
+            ShowNotice = true;
+            NoticeTitle = "Couldn't log out";
+            NoticeMessage = BuildSignOutFailureMessage(result);
+            return;
+        }
+
+        ClearNotice();
+    }
+
+    private void ClearNotice()
+    {
+        ShowNotice = false;
+        NoticeTitle = string.Empty;
+        NoticeMessage = string.Empty;
+    }
+
+    private static string BuildSignInFailureMessage(OneDriveConnectionOperationResult result)
+    {
+        if (Matches(result, "redirect_uri") || Matches(result, "AADSTS50011"))
+        {
+            return "Azure is missing the desktop redirect URI. Add http://localhost under Mobile and desktop applications.";
+        }
+
+        if (Matches(result, "AADSTS50020") || Matches(result, "personal Microsoft account"))
+        {
+            return "This app registration is not set up for personal Microsoft accounts yet. Change Supported account types to include personal accounts.";
+        }
+
+        if (Matches(result, "unauthorized_client") || Matches(result, "public client"))
+        {
+            return "Azure is blocking desktop sign-in for this app. Enable the Mobile and desktop applications platform and allow public client flows.";
+        }
+
+        if (Matches(result, "invalid_scope") || Matches(result, "Files.Read"))
+        {
+            return "The app registration is missing Microsoft Graph delegated permission Files.Read.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.ErrorCode))
+        {
+            return $"{result.ErrorCode}: {TrimErrorMessage(result.ErrorMessage)}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+        {
+            return TrimErrorMessage(result.ErrorMessage);
+        }
+
+        return "LockPaper couldn't finish the OneDrive sign-in. Try again.";
+    }
+
+    private static string BuildSignOutFailureMessage(OneDriveConnectionOperationResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.ErrorCode))
+        {
+            return $"{result.ErrorCode}: {TrimErrorMessage(result.ErrorMessage)}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+        {
+            return TrimErrorMessage(result.ErrorMessage);
+        }
+
+        return "LockPaper couldn't clear the OneDrive session. Try again.";
+    }
+
+    private static bool Matches(OneDriveConnectionOperationResult result, string value) =>
+        result.ErrorCode.Contains(value, StringComparison.OrdinalIgnoreCase)
+        || result.ErrorMessage.Contains(value, StringComparison.OrdinalIgnoreCase);
+
+    private static string TrimErrorMessage(string errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return "The Microsoft sign-in service returned an unknown error.";
+        }
+
+        var singleLineMessage = errorMessage
+            .ReplaceLineEndings(" ")
+            .Trim();
+        if (singleLineMessage.Length <= 180)
+        {
+            return singleLineMessage;
+        }
+
+        return $"{singleLineMessage[..177]}...";
+    }
+
+    private static string FormatAccountLabel(string accountLabel) =>
+        string.IsNullOrWhiteSpace(accountLabel)
+            ? DefaultAccountLabel
+            : accountLabel;
 }

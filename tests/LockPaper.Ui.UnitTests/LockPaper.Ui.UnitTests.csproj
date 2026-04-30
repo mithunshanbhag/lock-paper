@@ -17,7 +17,12 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\LockPaper.Ui\Models\LockPaperScenario.cs" Link="Source\Models\LockPaperScenario.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionOperationResult.cs" Link="Source\Models\OneDriveConnectionOperationResult.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionOperationStatus.cs" Link="Source\Models\OneDriveConnectionOperationStatus.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionState.cs" Link="Source\Models\OneDriveConnectionState.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionStatus.cs" Link="Source\Models\OneDriveConnectionStatus.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\PageModels\MainPageModel.cs" Link="Source\PageModels\MainPageModel.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveAuthenticationService.cs" Link="Source\Services\Interfaces\IOneDriveAuthenticationService.cs" />
   </ItemGroup>
 
   <ItemGroup>

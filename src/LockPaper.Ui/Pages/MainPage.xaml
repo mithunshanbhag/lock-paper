@@ -53,9 +53,9 @@
                         <Border Grid.Column="0"
                                 Style="{StaticResource StatusCardStyle}">
                             <VerticalStackLayout Spacing="8">
-                                <Label Text="Last attempt"
+                                <Label Text="Microsoft account"
                                        Style="{StaticResource SectionLabelStyle}" />
-                                <Label Text="{Binding LastAttemptText}"
+                                <Label Text="{Binding AccountSummaryText}"
                                        Style="{StaticResource CardValueLabelStyle}" />
                             </VerticalStackLayout>
                         </Border>
@@ -63,27 +63,13 @@
                         <Border Grid.Column="1"
                                 Style="{StaticResource StatusCardStyle}">
                             <VerticalStackLayout Spacing="8">
-                                <Label Text="Next attempt"
+                                <Label Text="Session"
                                        Style="{StaticResource SectionLabelStyle}" />
-                                <Label Text="{Binding NextAttemptText}"
+                                <Label Text="{Binding ConnectionSummaryText}"
                                        Style="{StaticResource CardValueLabelStyle}" />
                             </VerticalStackLayout>
                         </Border>
                     </Grid>
-
-                    <Border Style="{StaticResource PlaceholderCardStyle}"
-                            IsVisible="{Binding ShowPlaceholderControls}">
-                        <VerticalStackLayout Spacing="10">
-                            <Label Text="Placeholder state"
-                                   Style="{StaticResource SectionLabelStyle}" />
-                            <Label Text="Use this while the OneDrive flow is still a placeholder."
-                                   Style="{StaticResource CardBodyLabelStyle}" />
-                            <Picker ItemsSource="{Binding PlaceholderStates}"
-                                    SelectedItem="{Binding SelectedPlaceholderState}"
-                                    Style="{StaticResource PlaceholderPickerStyle}"
-                                    Title="Select a placeholder state" />
-                        </VerticalStackLayout>
-                    </Border>
                 </VerticalStackLayout>
             </Border>
         </Grid>

@@ -44,17 +44,39 @@ dotnet workload install maui
 dotnet restore .\src\LockPaper.Ui\LockPaper.Ui.csproj
 ```
 
+The shared MAUI client now uses a public Microsoft identity app registration for personal-account sign-in. Before testing OneDrive login, make sure that Azure app registration includes these redirect URIs:
+
+- `msalab40323b-cea7-401f-ac37-de0bdf27ee9f://auth`
+- `http://localhost`
+
+Also make sure the app registration is configured like this:
+
+- **Supported account types** includes personal Microsoft accounts.
+- **Mobile and desktop applications** platform is present.
+- **Allow public client flows** is enabled.
+- **Microsoft Graph -> Delegated permissions** includes `Files.Read`.
+
+If Windows sign-in shows:
+
+> invalid_request: The provided value for the input parameter 'redirect_uri' is not valid
+
+then the desktop redirect URI is missing from the app registration. Add:
+
+- `http://localhost`
+
+under the app registration's **Mobile and desktop applications** platform and try again.
+
 ## 🚀 Usage
 
-The current repository is focused on the core app shell and placeholder state flows for the v1 screen. After launching the app, the current prototype lets you:
+The current repository now supports the OneDrive connectivity slice for the v1 screen. After launching the app, you can:
 
 1. start from the signed-out state,
-2. simulate connecting to OneDrive,
-3. inspect placeholder states such as connected, album missing, album empty, and last-attempt failed,
-4. trigger a placeholder **Change now** action, and
+2. sign in with a personal Microsoft account,
+3. confirm that the app recognizes the connected account,
+4. refresh the OneDrive session from the primary action button, and
 5. log out from the title-bar affordance.
 
-This keeps the UI and behavior aligned with the current product spec while the real OneDrive, wallpaper, and scheduling integrations are built out.
+Album discovery, wallpaper rotation, and background scheduling are still pending. The connected state is currently focused on session visibility and re-authentication rather than wallpaper changes.
 
 ## 🛠️ Build and run locally
 

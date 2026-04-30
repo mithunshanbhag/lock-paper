@@ -1,3 +1,4 @@
+using LockPaper.Ui.Services.Implementations;
 using Microsoft.Extensions.Logging;
 
 namespace LockPaper.Ui;
@@ -21,6 +22,7 @@ public static class MauiProgram
         builder.Services.AddLogging(configure => configure.AddDebug());
 #endif
 
+        builder.Services.AddSingleton<IOneDriveAuthenticationService, OneDriveAuthenticationService>();
         builder.Services.AddSingleton<MainPageModel>();
         builder.Services.AddSingleton<MainPage>();
 

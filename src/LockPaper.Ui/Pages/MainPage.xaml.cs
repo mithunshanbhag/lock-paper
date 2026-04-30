@@ -10,6 +10,16 @@ public partial class MainPage : ContentPage
         BindingContext = model;
     }
 
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+
+        if (BindingContext is MainPageModel model)
+        {
+            await model.InitializeAsync();
+        }
+    }
+
     private async void OnLogoutClicked(object? sender, EventArgs e)
     {
         if (BindingContext is not MainPageModel model)
@@ -25,7 +35,7 @@ public partial class MainPage : ContentPage
 
         if (shouldLogOut)
         {
-            model.LogOut();
+            await model.LogOutAsync();
         }
     }
 }

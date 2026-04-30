@@ -1,9 +1,8 @@
 namespace LockPaper.Ui.Models;
 
-public enum LockPaperScenario
+public enum OneDriveConnectionStatus
 {
     SignedOut,
-    Connecting,
     Connected,
     ReauthenticationRequired,
 }
