@@ -584,7 +584,7 @@ public partial class MainPageModel : ObservableObject
                 ApplyScenario(LockPaperScenario.Connected);
                 AlbumStatusText = BuildNoEligiblePhotosAlbumStatus(result.MatchingAlbumCount);
                 ApplyWallpaperRefreshAttemptStatus(result);
-                SetFeedback("LockPaper found matching albums, but none of them contained usable photos for the lock screen.");
+                SetFeedback(BuildNoEligiblePhotosMessage());
                 break;
             case WallpaperRefreshStatus.ReauthenticationRequired:
                 ApplyScenario(LockPaperScenario.ReauthenticationRequired);
@@ -601,6 +601,9 @@ public partial class MainPageModel : ObservableObject
 
     private static string BuildNoMatchingAlbumsMessage() =>
         $"No matching OneDrive albums were found. Create or rename an album to {FormatAlbumNamesForUi()}";
+
+    private static string BuildNoEligiblePhotosMessage() =>
+        "LockPaper found matching albums, but none of them contained usable photos for the lock screen. On Windows, use JPG, JPEG, PNG, or BMP images.";
 
     private static string BuildAlbumDiscoveryFailureMessage(OneDriveAlbumDiscoveryResult result)
     {

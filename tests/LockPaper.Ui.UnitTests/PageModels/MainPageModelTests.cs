@@ -395,6 +395,36 @@ public class MainPageModelTests
         Assert.Equal("Waiting for wallpaper scheduling.", model.NextAttemptText);
     }
 
+    [Fact]
+    public async Task PrimaryActionCommand_WhenNoEligiblePhotosAreAvailable_ShouldExplainSupportedWindowsFormats()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService
+            {
+                CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
+            },
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService
+            {
+                RefreshResult = WallpaperRefreshResult.NoEligiblePhotos(
+                    DateTimeOffset.Parse("2026-04-30T21:15:00+05:30"),
+                    1),
+            },
+            dispatcher,
+            NullLogger<MainPageModel>.Instance);
+
+        await model.InitializeAsync();
+        await model.PrimaryActionCommand.ExecuteAsync(null);
+
+        Assert.Equal("1 matching album was found, but it has no usable photos.", model.AlbumStatusText);
+        Assert.Contains("usable photos", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("JPG, JPEG, PNG, or BMP", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("did not contain usable photos", model.LastAttemptText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Will resume after matching albums contain usable photos.", model.NextAttemptText);
+    }
+
     #endregion
 
     private sealed class FakeOneDriveAuthenticationService : IOneDriveAuthenticationService

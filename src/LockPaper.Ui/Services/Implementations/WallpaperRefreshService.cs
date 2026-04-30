@@ -133,10 +133,7 @@ public sealed class WallpaperRefreshService(
         byte[] imageBytes,
         CancellationToken cancellationToken)
     {
-        var wallpapersDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LockPaper",
-            "Wallpapers");
+        var wallpapersDirectory = GetWallpapersDirectory();
         Directory.CreateDirectory(wallpapersDirectory);
 
         var fileExtension = Path.GetExtension(photo.Name);
@@ -154,6 +151,20 @@ public sealed class WallpaperRefreshService(
         DeleteOlderWallpaperFiles(wallpapersDirectory, wallpaperFilePath);
 
         return wallpaperFilePath;
+    }
+
+    private static string GetWallpapersDirectory()
+    {
+#if WINDOWS
+        return Path.Combine(
+            Windows.Storage.ApplicationData.Current.LocalFolder.Path,
+            "Wallpapers");
+#else
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "LockPaper",
+            "Wallpapers");
+#endif
     }
 
     private static void DeleteOlderWallpaperFiles(string wallpapersDirectory, string currentWallpaperFilePath)

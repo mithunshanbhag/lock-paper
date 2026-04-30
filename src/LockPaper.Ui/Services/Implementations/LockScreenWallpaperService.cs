@@ -65,7 +65,7 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
         if (!wasApplied)
         {
             throw new InvalidOperationException(
-                "Windows rejected the lock-screen image. Make sure the packaged app can personalize the lock screen.");
+                "Windows rejected the lock-screen image. Make sure the packaged app can personalize the lock screen and that the photo uses JPG, JPEG, PNG, or BMP.");
         }
     }
 #endif

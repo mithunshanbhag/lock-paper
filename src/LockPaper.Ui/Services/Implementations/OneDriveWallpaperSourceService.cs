@@ -2,6 +2,7 @@ using LockPaper.Ui.Constants;
 using LockPaper.Ui.Models;
 using LockPaper.Ui.Services.Interfaces;
 using Microsoft.Extensions.Logging;
+using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -138,7 +139,7 @@ public sealed class OneDriveWallpaperSourceService(
 
         return itemsElement
             .EnumerateArray()
-            .Where(IsImageItem)
+            .Where(IsUsablePhotoItem)
             .Select(itemElement => new OneDriveWallpaperPhoto
             {
                 Id = GetRequiredStringProperty(itemElement, "id"),
@@ -149,6 +150,12 @@ public sealed class OneDriveWallpaperSourceService(
             .Where(photo => photo.PixelWidth > 0 && photo.PixelHeight > 0)
             .ToArray();
     }
+
+    private static bool IsUsablePhotoItem(JsonElement itemElement) =>
+        IsImageItem(itemElement)
+        && IsSupportedWallpaperFileName(
+            GetOptionalStringProperty(itemElement, "name"),
+            restrictToWindowsCompatibleFormats: OperatingSystem.IsWindows());
 
     private static bool TryGetItemsArray(JsonElement rootElement, out JsonElement itemsElement)
     {
@@ -197,6 +204,27 @@ public sealed class OneDriveWallpaperSourceService(
         && heightElement.ValueKind == JsonValueKind.Number
         && !string.IsNullOrWhiteSpace(GetOptionalStringProperty(itemElement, "id"))
         && !string.IsNullOrWhiteSpace(GetOptionalStringProperty(itemElement, "name"));
+
+    internal static bool IsSupportedWallpaperFileName(
+        string? fileName,
+        bool restrictToWindowsCompatibleFormats)
+    {
+        var fileExtension = Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(fileExtension))
+        {
+            return false;
+        }
+
+        if (!restrictToWindowsCompatibleFormats)
+        {
+            return true;
+        }
+
+        return fileExtension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+            || fileExtension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            || fileExtension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+            || fileExtension.Equals(".bmp", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string GetRequiredStringProperty(JsonElement element, string propertyName)
     {

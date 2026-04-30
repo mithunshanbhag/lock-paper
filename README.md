@@ -82,6 +82,7 @@ After launching the app, you can:
 Notes:
 
 - Windows uses the supported packaged personalization API for lock-screen updates.
+- Windows lock-screen updates work best with JPG, JPEG, PNG, or BMP photos; HEIC/HEIF images should be converted first.
 - Windows applies one shared lock-screen image across all monitors because the platform does not support different lock-screen images per monitor.
 - Hourly scheduling is still pending. The current implementation covers the manual refresh flow and the related status feedback.
 

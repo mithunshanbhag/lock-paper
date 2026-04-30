@@ -55,6 +55,26 @@ public sealed class WallpaperRefreshServiceTests
     }
 
     [Fact]
+    public async Task RefreshAsync_WhenMatchingAlbumsContainNoUsablePhotos_ShouldReturnNoEligiblePhotos()
+    {
+        var service = new WallpaperRefreshService(
+            new FakeDeviceDisplayService(),
+            new FakeLockScreenWallpaperService(),
+            new FakeOneDriveWallpaperSourceService
+            {
+                AlbumPhotos = [],
+            },
+            new FakeRandomizer(),
+            new FakeWallpaperSelectionService(),
+            NullLogger<WallpaperRefreshService>.Instance);
+
+        var result = await service.RefreshAsync();
+
+        Assert.Equal(WallpaperRefreshStatus.NoEligiblePhotos, result.Status);
+        Assert.Equal(1, result.MatchingAlbumCount);
+    }
+
+    [Fact]
     public async Task RefreshAsync_WhenOneDriveSessionIsInvalid_ShouldReturnReauthenticationRequired()
     {
         var service = new WallpaperRefreshService(
