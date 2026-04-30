@@ -7,6 +7,9 @@ namespace LockPaper.Ui.UnitTests.PageModels;
 
 public class MainPageModelTests
 {
+    private const int WaitForConditionMaxAttempts = 100;
+    private const int WaitForConditionDelayMilliseconds = 10;
+
     #region PositiveCases
 
     [Fact]
@@ -64,7 +67,7 @@ public class MainPageModelTests
         Assert.Equal("Waiting for wallpaper scheduling.", model.NextAttemptText);
         Assert.Single(model.DisplayPreviews);
         Assert.Equal("1080 x 1920", model.DisplayPreviews[0].ResolutionText);
-        Assert.Equal(1, dispatcher.DispatchCount);
+        Assert.Equal(2, dispatcher.DispatchCount);
     }
 
     [Fact]
@@ -87,7 +90,42 @@ public class MainPageModelTests
         Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplaySummaryText);
+        Assert.Equal(3, dispatcher.DispatchCount);
+    }
+
+    [Fact]
+    public async Task PrimaryActionCommand_WhenAlbumDiscoveryIsStillRunning_ShouldLeaveConnectingStateImmediately()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var albumDiscoveryCompletionSource = new TaskCompletionSource<OneDriveAlbumDiscoveryResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService(),
+            new FakeOneDriveAlbumDiscoveryService
+            {
+                PendingDiscoveryResult = albumDiscoveryCompletionSource.Task,
+            },
+            new FakeDeviceDisplayService(),
+            dispatcher,
+            NullLogger<MainPageModel>.Instance);
+
+        var commandTask = model.PrimaryActionCommand.ExecuteAsync(null);
+
+        await WaitForConditionAsync(() => model.ShowConnectedLayout);
+
+        Assert.Equal("Refresh OneDrive connection", model.PrimaryActionText);
+        Assert.True(model.ShowConnectedLayout);
+        Assert.False(model.ShowSignedOutLayout);
+        Assert.Equal("family@example.com", model.AccountStatusText);
+        Assert.Equal("Checking matching albums...", model.AlbumStatusText);
+        Assert.False(model.ShowFeedback);
         Assert.Equal(2, dispatcher.DispatchCount);
+
+        albumDiscoveryCompletionSource.SetResult(OneDriveAlbumDiscoveryResult.Succeeded(["lockpaper"]));
+
+        await commandTask;
+
+        Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
+        Assert.Equal(3, dispatcher.DispatchCount);
     }
 
     #endregion
@@ -191,7 +229,7 @@ public class MainPageModelTests
         Assert.Contains("lockpaper", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Waiting for a matching OneDrive album.", model.LastAttemptText);
         Assert.Equal("Will resume after a matching album is available.", model.NextAttemptText);
-        Assert.Equal(2, dispatcher.DispatchCount);
+        Assert.Equal(3, dispatcher.DispatchCount);
     }
 
     #endregion
@@ -228,7 +266,7 @@ public class MainPageModelTests
         Assert.Equal(string.Empty, model.LastAttemptText);
         Assert.Equal(string.Empty, model.NextAttemptText);
         Assert.Empty(model.DisplayPreviews);
-        Assert.Equal(2, dispatcher.DispatchCount);
+        Assert.Equal(3, dispatcher.DispatchCount);
     }
 
     [Fact]
@@ -274,7 +312,7 @@ public class MainPageModelTests
         Assert.Equal("1080 x 1920", model.DisplayPreviews[1].ResolutionText);
         Assert.Equal(108d, model.DisplayPreviews[0].PreviewWidth);
         Assert.True(model.DisplayPreviews[1].PreviewHeight > model.DisplayPreviews[1].PreviewWidth);
-        Assert.Equal(1, dispatcher.DispatchCount);
+        Assert.Equal(2, dispatcher.DispatchCount);
     }
 
     #endregion
@@ -310,8 +348,10 @@ public class MainPageModelTests
         public OneDriveAlbumDiscoveryResult DiscoveryResult { get; set; } =
             OneDriveAlbumDiscoveryResult.Succeeded(["lockpaper"]);
 
+        public Task<OneDriveAlbumDiscoveryResult>? PendingDiscoveryResult { get; set; }
+
         public Task<OneDriveAlbumDiscoveryResult> GetMatchingAlbumsAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(DiscoveryResult);
+            PendingDiscoveryResult ?? Task.FromResult(DiscoveryResult);
     }
 
     private sealed class FakeDeviceDisplayService : IDeviceDisplayService
@@ -340,5 +380,20 @@ public class MainPageModelTests
             action();
             return Task.CompletedTask;
         }
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition)
+    {
+        for (var attempt = 0; attempt < WaitForConditionMaxAttempts; attempt++)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            await Task.Delay(WaitForConditionDelayMilliseconds);
+        }
+
+        throw new TimeoutException("The expected condition was not reached.");
     }
 }

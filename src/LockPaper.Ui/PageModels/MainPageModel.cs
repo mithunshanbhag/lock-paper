@@ -134,11 +134,10 @@ public partial class MainPageModel : ObservableObject
             result.Status,
             result.State.Status,
             result.State.AccountLabel);
-        var albumDiscoveryResult = await GetAlbumDiscoveryResultIfNeededAsync(result.State);
 
         try
         {
-            await _uiDispatcher.DispatchAsync(() => HandleSignInResult(result, albumDiscoveryResult));
+            await _uiDispatcher.DispatchAsync(() => HandleSignInResult(result, null));
         }
         catch (Exception exception)
         {
@@ -149,6 +148,8 @@ public partial class MainPageModel : ObservableObject
                 result.State.Status);
             throw;
         }
+
+        await RefreshAlbumDiscoveryAsync(result.State);
     }
 
     private async Task RefreshConnectionStateAsync()
@@ -156,17 +157,18 @@ public partial class MainPageModel : ObservableObject
         _logger.LogInformation("Refreshing cached OneDrive connection state.");
         var connectionState = await _oneDriveAuthenticationService.GetCurrentConnectionStateAsync();
         _logger.LogInformation("Fetched cached OneDrive state {StateStatus} for account {AccountLabel}.", connectionState.Status, connectionState.AccountLabel);
-        var albumDiscoveryResult = await GetAlbumDiscoveryResultIfNeededAsync(connectionState);
 
         try
         {
-            await _uiDispatcher.DispatchAsync(() => ApplyConnectionState(connectionState, albumDiscoveryResult));
+            await _uiDispatcher.DispatchAsync(() => ApplyConnectionState(connectionState));
         }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Applying cached connection state on the UI thread failed.");
             throw;
         }
+
+        await RefreshAlbumDiscoveryAsync(connectionState);
     }
 
     private void ApplyScenario(LockPaperScenario scenario)
@@ -244,6 +246,28 @@ public partial class MainPageModel : ObservableObject
 
         ApplyDisplaySummary(displays);
         ApplyAttemptStatus(scenario, albumDiscoveryResult);
+    }
+
+    private void ApplyAlbumDiscoveryResult(
+        OneDriveConnectionState connectionState,
+        OneDriveAlbumDiscoveryResult albumDiscoveryResult)
+    {
+        if (connectionState.Status != OneDriveConnectionStatus.Connected)
+        {
+            return;
+        }
+
+        var expectedAccountLabel = FormatAccountLabel(connectionState.AccountLabel);
+        if (!ShowConnectedLayout
+            || !string.Equals(AccountStatusText, expectedAccountLabel, StringComparison.Ordinal))
+        {
+            _logger.LogInformation(
+                "Skipping album discovery update because the visible connection state changed before discovery completed.");
+            return;
+        }
+
+        ApplyAlbumStatus(LockPaperScenario.Connected, albumDiscoveryResult);
+        ApplyAttemptStatus(LockPaperScenario.Connected, albumDiscoveryResult);
     }
 
     private void HandleSignInResult(
@@ -333,15 +357,18 @@ public partial class MainPageModel : ObservableObject
             return;
         }
 
-        var resolvedDiscoveryResult = albumDiscoveryResult
-            ?? OneDriveAlbumDiscoveryResult.Failed("not_checked", "LockPaper couldn't confirm your OneDrive albums yet.");
+        if (albumDiscoveryResult is null)
+        {
+            AlbumStatusText = "Checking matching albums...";
+            return;
+        }
 
-        switch (resolvedDiscoveryResult.Status)
+        switch (albumDiscoveryResult.Status)
         {
             case OneDriveAlbumDiscoveryStatus.Found:
-                AlbumStatusText = resolvedDiscoveryResult.MatchingAlbumNames.Count == 1
+                AlbumStatusText = albumDiscoveryResult.MatchingAlbumNames.Count == 1
                     ? "1 matching album is ready."
-                    : $"{resolvedDiscoveryResult.MatchingAlbumNames.Count} matching albums are ready.";
+                    : $"{albumDiscoveryResult.MatchingAlbumNames.Count} matching albums are ready.";
                 break;
             case OneDriveAlbumDiscoveryStatus.NotFound:
                 AlbumStatusText = "No matching albums found.";
@@ -349,7 +376,7 @@ public partial class MainPageModel : ObservableObject
                 break;
             case OneDriveAlbumDiscoveryStatus.Failed:
                 AlbumStatusText = "Couldn't check matching albums.";
-                SetFeedback(BuildAlbumDiscoveryFailureMessage(resolvedDiscoveryResult));
+                SetFeedback(BuildAlbumDiscoveryFailureMessage(albumDiscoveryResult));
                 break;
         }
     }
@@ -420,7 +447,34 @@ public partial class MainPageModel : ObservableObject
         }
 
         _logger.LogInformation("Loading matching OneDrive albums for account {AccountLabel}.", connectionState.AccountLabel);
-        return await _oneDriveAlbumDiscoveryService.GetMatchingAlbumsAsync().ConfigureAwait(false);
+        try
+        {
+            return await _oneDriveAlbumDiscoveryService.GetMatchingAlbumsAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Loading matching OneDrive albums failed unexpectedly.");
+            return OneDriveAlbumDiscoveryResult.Failed(exception.GetType().Name, "LockPaper couldn't confirm your OneDrive albums yet.");
+        }
+    }
+
+    private async Task RefreshAlbumDiscoveryAsync(OneDriveConnectionState connectionState)
+    {
+        var albumDiscoveryResult = await GetAlbumDiscoveryResultIfNeededAsync(connectionState);
+        if (albumDiscoveryResult is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(() => ApplyAlbumDiscoveryResult(connectionState, albumDiscoveryResult));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Applying OneDrive album discovery results on the UI thread failed.");
+            throw;
+        }
     }
 
     private static string BuildNoMatchingAlbumsMessage() =>
