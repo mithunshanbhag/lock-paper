@@ -5,17 +5,29 @@ using Microsoft.Extensions.Logging;
 
 namespace LockPaper.Ui.Services.Implementations;
 
-public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthenticationService> logger) : IOneDriveAuthenticationService
+public sealed class OneDriveAuthenticationService : IOneDriveAuthenticationService
 {
-    private readonly IPublicClientApplication _publicClientApplication = CreatePublicClientApplication();
+    private readonly ILogger<OneDriveAuthenticationService> _logger;
+    private readonly IOneDriveTokenCacheStore _tokenCacheStore;
+    private readonly IPublicClientApplication _publicClientApplication;
+
+    public OneDriveAuthenticationService(
+        ILogger<OneDriveAuthenticationService> logger,
+        IOneDriveTokenCacheStore tokenCacheStore)
+    {
+        _logger = logger;
+        _tokenCacheStore = tokenCacheStore;
+        _publicClientApplication = CreatePublicClientApplication();
+        EnablePersistentTokenCache(_publicClientApplication.UserTokenCache);
+    }
 
     public async Task<OneDriveConnectionState> GetCurrentConnectionStateAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Checking current OneDrive connection state.");
+        _logger.LogInformation("Checking current OneDrive connection state.");
         var account = await GetPrimaryAccountAsync().ConfigureAwait(false);
         if (account is null)
         {
-            logger.LogInformation("No cached OneDrive account found.");
+            _logger.LogInformation("No cached OneDrive account found.");
             return OneDriveConnectionState.CreateSignedOut();
         }
 
@@ -24,24 +36,24 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
             var authenticationResult = await AcquireTokenSilentAsync(account, cancellationToken).ConfigureAwait(false);
 
             var accountLabel = GetAccountLabel(authenticationResult.Account ?? account);
-            logger.LogInformation("Cached OneDrive session is valid for account {AccountLabel}.", accountLabel);
+            _logger.LogInformation("Cached OneDrive session is valid for account {AccountLabel}.", accountLabel);
             return OneDriveConnectionState.CreateConnected(accountLabel);
         }
         catch (MsalUiRequiredException exception)
         {
-            logger.LogInformation(exception, "OneDrive connection needs reauthentication.");
+            _logger.LogInformation(exception, "OneDrive connection needs reauthentication.");
             return OneDriveConnectionState.CreateReauthenticationRequired(GetAccountLabel(account));
         }
         catch (MsalException exception)
         {
-            logger.LogWarning(exception, "LockPaper could not validate the cached OneDrive session.");
+            _logger.LogWarning(exception, "LockPaper could not validate the cached OneDrive session.");
             return OneDriveConnectionState.CreateReauthenticationRequired(GetAccountLabel(account));
         }
     }
 
     public async Task<OneDriveConnectionOperationResult> SignInAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Starting interactive OneDrive sign-in.");
+        _logger.LogInformation("Starting interactive OneDrive sign-in.");
         try
         {
             var authenticationRequest = _publicClientApplication
@@ -65,19 +77,19 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
                 .ExecuteAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            logger.LogInformation("Interactive OneDrive sign-in succeeded for account {AccountLabel}.", GetAccountLabel(authenticationResult.Account));
+            _logger.LogInformation("Interactive OneDrive sign-in succeeded for account {AccountLabel}.", GetAccountLabel(authenticationResult.Account));
             return OneDriveConnectionOperationResult.Succeeded(
                 OneDriveConnectionState.CreateConnected(GetAccountLabel(authenticationResult.Account)));
         }
         catch (MsalClientException exception) when (exception.ErrorCode == MsalError.AuthenticationCanceledError)
         {
-            logger.LogInformation(exception, "OneDrive sign-in was canceled.");
+            _logger.LogInformation(exception, "OneDrive sign-in was canceled.");
             return OneDriveConnectionOperationResult.Cancelled(
                 await GetCurrentConnectionStateAsync(cancellationToken).ConfigureAwait(false));
         }
         catch (MsalException exception)
         {
-            logger.LogWarning(exception, "OneDrive sign-in failed.");
+            _logger.LogWarning(exception, "OneDrive sign-in failed.");
             return OneDriveConnectionOperationResult.Failed(
                 await GetCurrentConnectionStateAsync(cancellationToken).ConfigureAwait(false),
                 exception.ErrorCode,
@@ -87,7 +99,7 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
 
     public async Task<string> GetMicrosoftGraphAccessTokenAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Acquiring a Microsoft Graph access token for OneDrive album discovery.");
+        _logger.LogInformation("Acquiring a Microsoft Graph access token for OneDrive album discovery.");
         var account = await GetPrimaryAccountAsync().ConfigureAwait(false)
             ?? throw new InvalidOperationException("LockPaper needs a signed-in Microsoft account before it can read your OneDrive albums.");
 
@@ -98,19 +110,19 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
         }
         catch (MsalUiRequiredException exception)
         {
-            logger.LogInformation(exception, "OneDrive album discovery needs the user to sign in again.");
+            _logger.LogInformation(exception, "OneDrive album discovery needs the user to sign in again.");
             throw new InvalidOperationException("LockPaper needs you to sign in again before it can read your OneDrive albums.", exception);
         }
         catch (MsalException exception)
         {
-            logger.LogWarning(exception, "LockPaper could not acquire a Microsoft Graph access token for album discovery.");
+            _logger.LogWarning(exception, "LockPaper could not acquire a Microsoft Graph access token for album discovery.");
             throw new InvalidOperationException("LockPaper couldn't get a valid OneDrive access token for album discovery.", exception);
         }
     }
 
     public async Task<OneDriveConnectionOperationResult> SignOutAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Starting OneDrive sign-out.");
+        _logger.LogInformation("Starting OneDrive sign-out.");
         try
         {
             var accounts = await _publicClientApplication.GetAccountsAsync().ConfigureAwait(false);
@@ -119,12 +131,14 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
                 await _publicClientApplication.RemoveAsync(account).ConfigureAwait(false);
             }
 
-            logger.LogInformation("OneDrive sign-out completed.");
+            await _tokenCacheStore.ClearAsync(cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation("OneDrive sign-out completed.");
             return OneDriveConnectionOperationResult.Succeeded(OneDriveConnectionState.CreateSignedOut());
         }
         catch (MsalException exception)
         {
-            logger.LogWarning(exception, "OneDrive sign-out failed.");
+            _logger.LogWarning(exception, "OneDrive sign-out failed.");
             return OneDriveConnectionOperationResult.Failed(
                 await GetCurrentConnectionStateAsync(cancellationToken).ConfigureAwait(false),
                 exception.ErrorCode,
@@ -142,6 +156,55 @@ public sealed class OneDriveAuthenticationService(ILogger<OneDriveAuthentication
         _publicClientApplication
             .AcquireTokenSilent(OneDriveAuthenticationConstants.Scopes, account)
             .ExecuteAsync(cancellationToken);
+
+    private void EnablePersistentTokenCache(ITokenCache tokenCache)
+    {
+        tokenCache.SetBeforeAccessAsync(OnBeforeTokenCacheAccessAsync);
+        tokenCache.SetAfterAccessAsync(OnAfterTokenCacheAccessAsync);
+    }
+
+    private async Task OnBeforeTokenCacheAccessAsync(TokenCacheNotificationArgs args)
+    {
+        try
+        {
+            var cacheBytes = await _tokenCacheStore.ReadAsync(args.CancellationToken).ConfigureAwait(false);
+            if (cacheBytes is { Length: > 0 })
+            {
+                args.TokenCache.DeserializeMsalV3(cacheBytes);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "LockPaper could not read the persisted OneDrive token cache; clearing the saved cache.");
+            await _tokenCacheStore.ClearAsync(args.CancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task OnAfterTokenCacheAccessAsync(TokenCacheNotificationArgs args)
+    {
+        if (!args.HasStateChanged)
+        {
+            return;
+        }
+
+        try
+        {
+            var cacheBytes = args.TokenCache.SerializeMsalV3();
+            await _tokenCacheStore.WriteAsync(cacheBytes, args.CancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "LockPaper could not persist the OneDrive token cache.");
+        }
+    }
 
     private static string GetAccountLabel(IAccount account) =>
         string.IsNullOrWhiteSpace(account.Username)

@@ -27,6 +27,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IDeviceDisplayService, DeviceDisplayService>();
         builder.Services.AddSingleton<IUiDispatcher, MauiUiDispatcher>();
         builder.Services.AddSingleton<IRandomizer, SystemRandomizer>();
+        builder.Services.AddSingleton<IOneDriveTokenCacheStore, SecureOneDriveTokenCacheStore>();
         builder.Services.AddSingleton<IOneDriveAuthenticationService, OneDriveAuthenticationService>();
         builder.Services.AddSingleton(new HttpClient
         {
