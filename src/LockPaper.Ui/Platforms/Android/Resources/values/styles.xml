@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="LockPaper.MainTheme" parent="Maui.MainTheme.NoActionBar">
+        <item name="bottomNavigationViewStyle">@style/Widget.MaterialComponents.BottomNavigationView</item>
+    </style>
+
+    <style name="LockPaper.SplashTheme" parent="Maui.SplashTheme">
+        <item name="bottomNavigationViewStyle">@style/Widget.MaterialComponents.BottomNavigationView</item>
+    </style>
+</resources>

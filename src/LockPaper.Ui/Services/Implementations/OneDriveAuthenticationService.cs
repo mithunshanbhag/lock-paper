@@ -18,7 +18,10 @@ public sealed class OneDriveAuthenticationService : IOneDriveAuthenticationServi
         _logger = logger;
         _tokenCacheStore = tokenCacheStore;
         _publicClientApplication = CreatePublicClientApplication();
+
+#if WINDOWS
         EnablePersistentTokenCache(_publicClientApplication.UserTokenCache);
+#endif
     }
 
     public async Task<OneDriveConnectionState> GetCurrentConnectionStateAsync(CancellationToken cancellationToken = default)
@@ -157,6 +160,7 @@ public sealed class OneDriveAuthenticationService : IOneDriveAuthenticationServi
             .AcquireTokenSilent(OneDriveAuthenticationConstants.Scopes, account)
             .ExecuteAsync(cancellationToken);
 
+#if WINDOWS
     private void EnablePersistentTokenCache(ITokenCache tokenCache)
     {
         tokenCache.SetBeforeAccessAsync(OnBeforeTokenCacheAccessAsync);
@@ -205,6 +209,7 @@ public sealed class OneDriveAuthenticationService : IOneDriveAuthenticationServi
             _logger.LogWarning(exception, "LockPaper could not persist the OneDrive token cache.");
         }
     }
+#endif
 
     private static string GetAccountLabel(IAccount account) =>
         string.IsNullOrWhiteSpace(account.Username)
