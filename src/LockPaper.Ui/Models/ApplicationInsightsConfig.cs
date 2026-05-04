@@ -2,5 +2,5 @@ namespace LockPaper.Ui.Models;
 
 public sealed class ApplicationInsightsConfig
 {
-    public required string ConnectionString { get; set; }
+    public string ConnectionString { get; set; } = string.Empty;
 }
