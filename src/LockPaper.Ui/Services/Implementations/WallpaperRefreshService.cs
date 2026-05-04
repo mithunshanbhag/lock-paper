@@ -21,6 +21,7 @@ public sealed class WallpaperRefreshService(
     {
         var attemptedAtLocal = DateTimeOffset.Now;
         var matchingAlbumCount = 0;
+        logger.LogInformation("Starting wallpaper refresh attempt at {AttemptedAtLocal}.", attemptedAtLocal);
 
         try
         {
@@ -28,8 +29,13 @@ public sealed class WallpaperRefreshService(
             var targetDisplay = GetTargetDisplay(displays);
             if (targetDisplay is null)
             {
+                logger.LogWarning("Wallpaper refresh could not choose a target display from {DisplayCount} display(s).", displays.Count);
                 return WallpaperRefreshResult.Failed(attemptedAtLocal, 0, "LockPaper couldn't read the current display details.");
             }
+
+            logger.LogInformation(
+                "Wallpaper refresh selected target display {DisplayLabel}.",
+                FormatDisplayLabel(targetDisplay));
 
             IReadOnlyList<OneDriveWallpaperAlbum> matchingAlbums;
             try
@@ -44,13 +50,20 @@ public sealed class WallpaperRefreshService(
             }
 
             matchingAlbumCount = matchingAlbums.Count;
+            logger.LogInformation("Wallpaper refresh found {MatchingAlbumCount} matching album(s).", matchingAlbumCount);
             if (matchingAlbums.Count == 0)
             {
+                logger.LogInformation("Wallpaper refresh stopped because no matching albums were available.");
                 return WallpaperRefreshResult.NoMatchingAlbums(attemptedAtLocal);
             }
 
             foreach (var album in ShuffleAlbums(matchingAlbums))
             {
+                logger.LogInformation(
+                    "Evaluating matching album '{AlbumName}' ({AlbumId}) for wallpaper refresh.",
+                    album.Name,
+                    album.Id);
+
                 IReadOnlyList<OneDriveWallpaperPhoto> photos;
                 try
                 {
@@ -63,11 +76,28 @@ public sealed class WallpaperRefreshService(
                     return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
                 }
 
+                logger.LogInformation(
+                    "Album '{AlbumName}' returned {PhotoCount} usable photo(s).",
+                    album.Name,
+                    photos.Count);
+
                 var selectedPhoto = wallpaperSelectionService.SelectBestPhoto(photos, targetDisplay);
                 if (selectedPhoto is null)
                 {
+                    logger.LogInformation(
+                        "Skipping album '{AlbumName}' because no eligible photo could be selected for target display {DisplayLabel}.",
+                        album.Name,
+                        FormatDisplayLabel(targetDisplay));
                     continue;
                 }
+
+                logger.LogInformation(
+                    "Selected photo '{PhotoName}' ({PhotoWidth}x{PhotoHeight}) from album '{AlbumName}' for target display {DisplayLabel}.",
+                    selectedPhoto.Name,
+                    selectedPhoto.PixelWidth,
+                    selectedPhoto.PixelHeight,
+                    album.Name,
+                    FormatDisplayLabel(targetDisplay));
 
                 byte[] imageBytes;
                 try
@@ -82,10 +112,20 @@ public sealed class WallpaperRefreshService(
                 }
 
                 var localFilePath = await SaveWallpaperFileAsync(selectedPhoto, imageBytes, cancellationToken).ConfigureAwait(false);
+                logger.LogInformation(
+                    "Saved wallpaper candidate '{PhotoName}' to {LocalFilePath} ({ByteCount} bytes).",
+                    selectedPhoto.Name,
+                    localFilePath,
+                    imageBytes.Length);
 
                 await lockScreenWallpaperService
                     .ApplyAsync(localFilePath, cancellationToken)
                     .ConfigureAwait(false);
+
+                logger.LogInformation(
+                    "Applied wallpaper candidate '{PhotoName}' from album '{AlbumName}' to the lock screen.",
+                    selectedPhoto.Name,
+                    album.Name);
 
                 return WallpaperRefreshResult.Succeeded(
                     attemptedAtLocal,
@@ -95,6 +135,9 @@ public sealed class WallpaperRefreshService(
                     localFilePath);
             }
 
+            logger.LogInformation(
+                "Wallpaper refresh finished without an eligible photo after evaluating {MatchingAlbumCount} matching album(s).",
+                matchingAlbumCount);
             return WallpaperRefreshResult.NoEligiblePhotos(attemptedAtLocal, matchingAlbumCount);
         }
         catch (Exception exception) when (
@@ -105,7 +148,7 @@ public sealed class WallpaperRefreshService(
             or UnauthorizedAccessException
             or InvalidOperationException)
         {
-            logger.LogWarning(exception, "Wallpaper refresh failed.");
+            logger.LogWarning(exception, "Wallpaper refresh failed after evaluating {MatchingAlbumCount} matching album(s).", matchingAlbumCount);
             return WallpaperRefreshResult.Failed(attemptedAtLocal, matchingAlbumCount, exception.Message);
         }
     }
@@ -135,6 +178,9 @@ public sealed class WallpaperRefreshService(
             .OrderByDescending(display => display.IsPrimary)
             .ThenByDescending(display => (long)display.PixelWidth * display.PixelHeight)
             .FirstOrDefault();
+
+    private static string FormatDisplayLabel(DeviceDisplayInfo display) =>
+        $"{display.PixelWidth}x{display.PixelHeight}, primary={display.IsPrimary}";
 
     private static async Task<string> SaveWallpaperFileAsync(
         OneDriveWallpaperPhoto photo,

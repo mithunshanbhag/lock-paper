@@ -277,6 +277,12 @@ public partial class MainPageModel : ObservableObject
             return;
         }
 
+        _logger.LogInformation(
+            "Applying album discovery result {Status} with {MatchingAlbumCount} matching album(s). Error code: {ErrorCode}.",
+            albumDiscoveryResult.Status,
+            albumDiscoveryResult.MatchingAlbumNames.Count,
+            albumDiscoveryResult.ErrorCode);
+
         ApplyAlbumStatus(LockPaperScenario.Connected, albumDiscoveryResult);
         ApplyAttemptStatus(LockPaperScenario.Connected, albumDiscoveryResult);
     }
@@ -503,7 +509,13 @@ public partial class MainPageModel : ObservableObject
         _logger.LogInformation("Loading matching OneDrive albums for account {AccountLabel}.", connectionState.AccountLabel);
         try
         {
-            return await _oneDriveAlbumDiscoveryService.GetMatchingAlbumsAsync().ConfigureAwait(false);
+            var result = await _oneDriveAlbumDiscoveryService.GetMatchingAlbumsAsync().ConfigureAwait(false);
+            _logger.LogInformation(
+                "Album discovery completed with status {Status}. Matching album count: {MatchingAlbumCount}. Error code: {ErrorCode}.",
+                result.Status,
+                result.MatchingAlbumNames.Count,
+                result.ErrorCode);
+            return result;
         }
         catch (Exception exception)
         {
@@ -546,6 +558,12 @@ public partial class MainPageModel : ObservableObject
         }
 
         var result = await _wallpaperRefreshService.RefreshAsync().ConfigureAwait(false);
+        _logger.LogInformation(
+            "Wallpaper refresh completed with status {Status}. Matching album count: {MatchingAlbumCount}. Album: {AlbumName}. Photo: {PhotoName}.",
+            result.Status,
+            result.MatchingAlbumCount,
+            result.AlbumName,
+            result.PhotoName);
 
         try
         {
@@ -572,7 +590,11 @@ public partial class MainPageModel : ObservableObject
 
     private void HandleWallpaperRefreshResult(WallpaperRefreshResult result)
     {
-        _logger.LogInformation("Handling wallpaper refresh result {Status}.", result.Status);
+        _logger.LogInformation(
+            "Handling wallpaper refresh result {Status}. Matching album count: {MatchingAlbumCount}. Applied wallpaper path: {AppliedWallpaperFilePath}.",
+            result.Status,
+            result.MatchingAlbumCount,
+            result.AppliedWallpaperFilePath);
 
         _lastWallpaperRefreshResult = result;
 
@@ -631,6 +653,11 @@ public partial class MainPageModel : ObservableObject
                 _currentWallpaperPreviewFilePath =
                     await _wallpaperRefreshService.GetCurrentWallpaperPreviewFilePathAsync().ConfigureAwait(false)
                     ?? string.Empty;
+
+                _logger.LogInformation(
+                    "Resolved wallpaper preview path for the display summary. Has preview: {HasPreview}. Path: {WallpaperPreviewFilePath}.",
+                    !string.IsNullOrWhiteSpace(_currentWallpaperPreviewFilePath),
+                    _currentWallpaperPreviewFilePath);
             }
             catch (Exception exception) when (
                 exception is IOException

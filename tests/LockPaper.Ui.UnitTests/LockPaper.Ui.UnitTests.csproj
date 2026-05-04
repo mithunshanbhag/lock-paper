@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.7" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -18,7 +20,10 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\LockPaper.Ui\Constants\OneDriveAlbumDiscoveryConstants.cs" Link="Source\Constants\OneDriveAlbumDiscoveryConstants.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Constants\ConfigKeys.cs" Link="Source\Constants\ConfigKeys.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\AppSettingsConfigurationLoader.cs" Link="Source\Misc\Utilities\AppSettingsConfigurationLoader.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\DeviceDisplayInfoFactory.cs" Link="Source\Misc\Utilities\DeviceDisplayInfoFactory.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\ApplicationInsightsConfig.cs" Link="Source\Models\ApplicationInsightsConfig.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\DeviceDisplayInfo.cs" Link="Source\Models\DeviceDisplayInfo.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\DisplaySnapshot.cs" Link="Source\Models\DisplaySnapshot.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\DisplayPreview.cs" Link="Source\Models\DisplayPreview.cs" />
@@ -47,6 +52,10 @@
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IUiDispatcher.cs" Link="Source\Services\Interfaces\IUiDispatcher.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IWallpaperRefreshService.cs" Link="Source\Services\Interfaces\IWallpaperRefreshService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IWallpaperSelectionService.cs" Link="Source\Services\Interfaces\IWallpaperSelectionService.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\src\LockPaper.Ui\appsettings.json" Link="Source\appsettings.json" />
   </ItemGroup>
 
   <ItemGroup>

@@ -16,32 +16,51 @@ public sealed class OneDriveWallpaperSourceService(
 {
     public async Task<IReadOnlyList<OneDriveWallpaperAlbum>> GetMatchingAlbumsAsync(CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Loading matching OneDrive albums from Microsoft Graph.");
         var accessToken = await oneDriveAuthenticationService
             .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
             .ConfigureAwait(false);
 
         var matchingAlbums = new List<OneDriveWallpaperAlbum>();
         var nextRequestUri = OneDriveAlbumDiscoveryConstants.AlbumsRequestUri;
+        var pageNumber = 0;
 
         while (!string.IsNullOrWhiteSpace(nextRequestUri))
         {
+            pageNumber++;
             using var response = await SendAsync(nextRequestUri, accessToken, cancellationToken).ConfigureAwait(false);
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            matchingAlbums.AddRange(GetMatchingAlbums(document.RootElement));
+            var pageAlbums = GetMatchingAlbums(document.RootElement);
+            matchingAlbums.AddRange(pageAlbums);
             nextRequestUri = GetNextPageRequestUri(document.RootElement);
+
+            logger.LogInformation(
+                "Processed OneDrive album page {PageNumber}. Matching albums on page: {PageAlbumCount}. Has another page: {HasNextPage}.",
+                pageNumber,
+                pageAlbums.Count,
+                !string.IsNullOrWhiteSpace(nextRequestUri));
         }
 
-        return matchingAlbums
+        var uniqueAlbums = matchingAlbums
             .GroupBy(album => album.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToArray();
+
+        logger.LogInformation(
+            "Loaded {AlbumCount} matching OneDrive album(s) across {PageCount} page(s).",
+            uniqueAlbums.Length,
+            pageNumber);
+
+        return uniqueAlbums;
     }
 
     public async Task<IReadOnlyList<OneDriveWallpaperPhoto>> GetAlbumPhotosAsync(string albumId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(albumId);
+
+        logger.LogInformation("Loading usable OneDrive photos for album {AlbumId}.", albumId);
 
         var accessToken = await oneDriveAuthenticationService
             .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
@@ -49,26 +68,46 @@ public sealed class OneDriveWallpaperSourceService(
 
         var nextRequestUri = $"me/drive/items/{Uri.EscapeDataString(albumId)}/children?$select=id,name,image&$top=200";
         var photos = new List<OneDriveWallpaperPhoto>();
+        var pageNumber = 0;
 
         while (!string.IsNullOrWhiteSpace(nextRequestUri))
         {
+            pageNumber++;
             using var response = await SendAsync(nextRequestUri, accessToken, cancellationToken).ConfigureAwait(false);
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            photos.AddRange(GetPhotos(document.RootElement));
+            var pagePhotos = GetPhotos(document.RootElement);
+            photos.AddRange(pagePhotos);
             nextRequestUri = GetNextPageRequestUri(document.RootElement);
+
+            logger.LogInformation(
+                "Processed OneDrive photo page {PageNumber} for album {AlbumId}. Usable photos on page: {PagePhotoCount}. Has another page: {HasNextPage}.",
+                pageNumber,
+                albumId,
+                pagePhotos.Count,
+                !string.IsNullOrWhiteSpace(nextRequestUri));
         }
 
-        return photos
+        var uniquePhotos = photos
             .GroupBy(photo => photo.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToArray();
+
+        logger.LogInformation(
+            "Loaded {PhotoCount} usable OneDrive photo(s) for album {AlbumId} across {PageCount} page(s).",
+            uniquePhotos.Length,
+            albumId,
+            pageNumber);
+
+        return uniquePhotos;
     }
 
     public async Task<byte[]> DownloadPhotoBytesAsync(string photoId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(photoId);
+
+        logger.LogInformation("Downloading OneDrive photo content for photo {PhotoId}.", photoId);
 
         var accessToken = await oneDriveAuthenticationService
             .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
@@ -79,7 +118,9 @@ public sealed class OneDriveWallpaperSourceService(
             accessToken,
             cancellationToken).ConfigureAwait(false);
 
-        return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        var photoBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        logger.LogInformation("Downloaded {ByteCount} bytes for OneDrive photo {PhotoId}.", photoBytes.Length, photoId);
+        return photoBytes;
     }
 
     private async Task<HttpResponseMessage> SendAsync(
@@ -97,6 +138,10 @@ public sealed class OneDriveWallpaperSourceService(
 
         if (response.IsSuccessStatusCode)
         {
+            logger.LogInformation(
+                "OneDrive wallpaper request to {RequestUri} succeeded with HTTP status code {StatusCode}.",
+                requestUri,
+                response.StatusCode);
             return response;
         }
 
@@ -104,9 +149,10 @@ public sealed class OneDriveWallpaperSourceService(
         var message = ExtractGraphErrorMessage(errorPayload);
 
         logger.LogWarning(
-            "OneDrive wallpaper request to {RequestUri} failed with HTTP status code {StatusCode}.",
+            "OneDrive wallpaper request to {RequestUri} failed with HTTP status code {StatusCode}. Graph message: {GraphMessage}",
             requestUri,
-            response.StatusCode);
+            response.StatusCode,
+            message);
 
         response.Dispose();
         throw new HttpRequestException(message, null, response.StatusCode);

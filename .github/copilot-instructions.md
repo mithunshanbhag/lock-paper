@@ -8,6 +8,7 @@ My preferred framework for building apps is .NET (currently .NET 10 is the lates
 
 - Frontend: Blazor WebAssembly (with MudBlazor controls).
 - CommandLine: .NET Console App (with Spectre.Console for rich CLI).
+- Mobile / cross-platform: Blazor Hybrid (with MudBlazor controls) if the app does not need native capabilities. Else .NET MAUI (with CommunityToolkit.Maui controls).
 - Backend: Azure Function Apps.
 - Database: Azure Cosmos DB (NOSQL API, formerly known as Core SQL API).
 
@@ -133,6 +134,10 @@ I prefer to host my apps and related infra on Azure using serverless/PaaS. This 
 ## DOCUMENTATION GUIDELINES
 
 - Please follow the guidelines in the `/.github/skills/documentation/SKILL.md` file when authoring documentation.
+
+## DIAGNOSTICS GUIDELINES
+
+- Please follow the guidelines in the `/.github/skills/diagnostics/SKILL.md` file when performing diagnostics.
 
 ## MISCELLANEOUS
 

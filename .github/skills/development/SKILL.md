@@ -122,6 +122,20 @@ Registration pattern:
 
 Keep new registrations in `ConfigureServices()` to preserve a single composition root.
 
+### Configuration
+
+- To the greatest extent possible, use appsettings.json for configuration. 
+  - Bind configuration sections to strongly-typed configuration classes (for example, `CosmosDbConfig`) that are injected via DI where needed.
+  - Individual configuration keys should be stored in the `ConfigKeys` class under the `src\{AppName}\Constants` or `src\{AppName}.Core\Constants` folder.
+- For Local development: Use user secrets. For Azure function apps, use local.settings.json.
+
+### Logging and Telemetry
+
+- Use the framework-injected `ILogger<T>` for logging in all services, repositories, controllers, and other classes.
+- By default, the logging configuration should be set up as follows:
+  - Local development: Log to console with `LogLevel.Debug` or `LogLevel.Trace` for maximum verbosity.
+  - Everything else: Log to Azure AppInsights with `LogLevel.Information`. The AppInsights instrumentation key should be stored in configuration.
+
 ### NuGet Packages
 
 - Add the `MithunShanbhag.Nucleus` package (latest pre-release version). 

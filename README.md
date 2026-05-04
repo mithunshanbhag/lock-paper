@@ -57,6 +57,16 @@ Also make sure the app registration is configured like this:
 - **Allow public client flows** is enabled.
 - **Microsoft Graph -> Delegated permissions** includes `Files.Read`.
 
+LockPaper logging is configured to send `ILogger` output to Azure Application Insights. Update the placeholder connection string in `src\LockPaper.Ui\appsettings.json` before checking in or deploying:
+
+```json
+{
+  "ApplicationInsights": {
+    "ConnectionString": "InstrumentationKey=..."
+  }
+}
+```
+
 If Windows sign-in shows:
 
 > invalid_request: The provided value for the input parameter 'redirect_uri' is not valid

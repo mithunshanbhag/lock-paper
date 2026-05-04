@@ -22,6 +22,10 @@ public sealed class OneDriveAuthenticationService : IOneDriveAuthenticationServi
 #if WINDOWS
         EnablePersistentTokenCache(_publicClientApplication.UserTokenCache);
 #endif
+
+        _logger.LogInformation(
+            "Configured OneDrive authentication service. Persistent token cache enabled: {PersistentTokenCacheEnabled}.",
+            OperatingSystem.IsWindows());
     }
 
     public async Task<OneDriveConnectionState> GetCurrentConnectionStateAsync(CancellationToken cancellationToken = default)
@@ -103,12 +107,20 @@ public sealed class OneDriveAuthenticationService : IOneDriveAuthenticationServi
     public async Task<string> GetMicrosoftGraphAccessTokenAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Acquiring a Microsoft Graph access token for OneDrive album discovery.");
-        var account = await GetPrimaryAccountAsync().ConfigureAwait(false)
-            ?? throw new InvalidOperationException("LockPaper needs a signed-in Microsoft account before it can read your OneDrive albums.");
+        var account = await GetPrimaryAccountAsync().ConfigureAwait(false);
+        if (account is null)
+        {
+            _logger.LogWarning("Cannot acquire a Microsoft Graph access token because no cached OneDrive account is available.");
+            throw new InvalidOperationException("LockPaper needs a signed-in Microsoft account before it can read your OneDrive albums.");
+        }
 
         try
         {
             var authenticationResult = await AcquireTokenSilentAsync(account, cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation(
+                "Acquired a Microsoft Graph access token for account {AccountLabel}. Expires at {ExpiresOnLocal}.",
+                GetAccountLabel(authenticationResult.Account ?? account),
+                authenticationResult.ExpiresOn.LocalDateTime);
             return authenticationResult.AccessToken;
         }
         catch (MsalUiRequiredException exception)
@@ -128,7 +140,8 @@ public sealed class OneDriveAuthenticationService : IOneDriveAuthenticationServi
         _logger.LogInformation("Starting OneDrive sign-out.");
         try
         {
-            var accounts = await _publicClientApplication.GetAccountsAsync().ConfigureAwait(false);
+            var accounts = (await _publicClientApplication.GetAccountsAsync().ConfigureAwait(false)).ToArray();
+            _logger.LogInformation("Removing {AccountCount} cached OneDrive account(s) during sign-out.", accounts.Length);
             foreach (var account in accounts)
             {
                 await _publicClientApplication.RemoveAsync(account).ConfigureAwait(false);
@@ -151,8 +164,21 @@ public sealed class OneDriveAuthenticationService : IOneDriveAuthenticationServi
 
     private async Task<IAccount?> GetPrimaryAccountAsync()
     {
-        var accounts = await _publicClientApplication.GetAccountsAsync().ConfigureAwait(false);
-        return accounts.FirstOrDefault();
+        var accounts = (await _publicClientApplication.GetAccountsAsync().ConfigureAwait(false)).ToArray();
+        if (accounts.Length == 0)
+        {
+            return null;
+        }
+
+        if (accounts.Length > 1)
+        {
+            _logger.LogInformation(
+                "MSAL returned {AccountCount} cached accounts. LockPaper will use the first account {AccountLabel}.",
+                accounts.Length,
+                GetAccountLabel(accounts[0]));
+        }
+
+        return accounts[0];
     }
 
     private Task<AuthenticationResult> AcquireTokenSilentAsync(IAccount account, CancellationToken cancellationToken) =>

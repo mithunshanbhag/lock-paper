@@ -1,6 +1,9 @@
 using LockPaper.Ui.Services.Implementations;
 using LockPaper.Ui.Constants;
+using LockPaper.Ui.Misc.Utilities;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.ApplicationInsights;
 
 namespace LockPaper.Ui;
 
@@ -9,6 +12,21 @@ public static class MauiProgram
     public static MauiApp CreateMauiApp()
     {
         var builder = MauiApp.CreateBuilder();
+        builder.Configuration.AddConfiguration(
+            AppSettingsConfigurationLoader.LoadEmbeddedJsonConfiguration(typeof(MauiProgram).Assembly, "appsettings.json"));
+
+        var appInsightsConfig = builder.Configuration
+            .GetRequiredSection(ConfigKeys.ApplicationInsightsSection)
+            .Get<ApplicationInsightsConfig>()
+            ?? throw new InvalidOperationException(
+                $"Configuration section '{ConfigKeys.ApplicationInsightsSection}' is missing or invalid.");
+
+        if (string.IsNullOrWhiteSpace(appInsightsConfig.ConnectionString))
+        {
+            throw new InvalidOperationException(
+                $"Configuration value '{ConfigKeys.ApplicationInsightsConnectionString}' must be set.");
+        }
+
         builder
             .UseMauiApp<App>()
             .ConfigureFonts(fonts =>
@@ -18,10 +36,31 @@ public static class MauiProgram
                 fonts.AddFont("SegoeUI-Semibold.ttf", "SegoeSemibold");
             });
 
+        builder.Services.Configure<ApplicationInsightsConfig>(options =>
+        {
+            options.ConnectionString = appInsightsConfig.ConnectionString;
+        });
+
+        builder.Services.AddApplicationInsightsTelemetryWorkerService(options =>
+        {
+            options.ConnectionString = appInsightsConfig.ConnectionString;
+        });
+
+        builder.Logging.ClearProviders();
+        builder.Logging.AddApplicationInsights(
+            configureTelemetryConfiguration: telemetryConfiguration =>
+            {
+                telemetryConfiguration.ConnectionString = appInsightsConfig.ConnectionString;
+            },
+            configureApplicationInsightsLoggerOptions: _ => { });
+
 #if DEBUG
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
         builder.Logging.AddDebug();
-        builder.Services.AddLogging(configure => configure.AddDebug());
+        builder.Logging.AddFilter<ApplicationInsightsLoggerProvider>(string.Empty, LogLevel.Debug);
+#else
+        builder.Logging.SetMinimumLevel(LogLevel.Information);
+        builder.Logging.AddFilter<ApplicationInsightsLoggerProvider>(string.Empty, LogLevel.Information);
 #endif
 
         builder.Services.AddSingleton<IDeviceDisplayService, DeviceDisplayService>();
