@@ -58,7 +58,7 @@
                                 Style="{StaticResource StatusIconButtonStyle}"
                                 IsVisible="{Binding IsLogoutVisible}"
                                 Clicked="OnLogoutClicked"
-                                SemanticProperties.Description="Log out" />
+                                SemanticProperties.Description="Open log out confirmation dialog" />
                     </Grid>
 
                     <Button Text="{Binding PrimaryActionText}"
@@ -79,17 +79,8 @@
                          </VerticalStackLayout>
                      </Border>
 
-                     <Border Style="{StaticResource StatusCardStyle}">
-                         <VerticalStackLayout Spacing="8">
-                             <Label Text="Wallpaper albums"
-                                    Style="{StaticResource SectionLabelStyle}" />
-                             <Label Text="{Binding AlbumStatusText}"
-                                    Style="{StaticResource CardValueLabelStyle}" />
-                         </VerticalStackLayout>
-                     </Border>
-
-                     <Border Style="{StaticResource StatusCardStyle}">
-                         <VerticalStackLayout Spacing="12">
+                    <Border Style="{StaticResource StatusCardStyle}">
+                        <VerticalStackLayout Spacing="12">
                              <Label Text="Display summary"
                                      Style="{StaticResource SectionLabelStyle}" />
                             <Label Text="{Binding DisplaySummaryText}"

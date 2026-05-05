@@ -488,7 +488,7 @@ public partial class MainPageModel : ObservableObject
         if (scenario == LockPaperScenario.ReauthenticationRequired)
         {
             LastAttemptText = "Paused until OneDrive is reconnected.";
-            NextAttemptText = "Will resume after you sign in again.";
+            NextAttemptText = "Sign in again, then tap Refresh lockscreen wallpaper.";
             return;
         }
 
@@ -497,12 +497,12 @@ public partial class MainPageModel : ObservableObject
             switch (albumDiscoveryResult.Status)
             {
                 case OneDriveAlbumDiscoveryStatus.NotFound:
-                    LastAttemptText = "Waiting for a matching OneDrive album.";
-                    NextAttemptText = "Will resume after a matching album is available.";
+                    LastAttemptText = "No matching OneDrive album yet.";
+                    NextAttemptText = "Add a matching album, then tap Refresh lockscreen wallpaper.";
                     return;
                 case OneDriveAlbumDiscoveryStatus.Failed:
                     LastAttemptText = "Couldn't verify the OneDrive album yet.";
-                    NextAttemptText = "Will resume after OneDrive album access works.";
+                    NextAttemptText = "Fix OneDrive album access, then tap Refresh lockscreen wallpaper.";
                     return;
             }
         }
@@ -514,7 +514,7 @@ public partial class MainPageModel : ObservableObject
         }
 
         LastAttemptText = "No wallpaper change has run yet.";
-        NextAttemptText = "Waiting for wallpaper scheduling.";
+        NextAttemptText = "Manual refresh only right now. Hourly refresh is planned.";
     }
 
     private void ApplyWallpaperRefreshAttemptStatus(WallpaperRefreshResult result)
@@ -525,23 +525,23 @@ public partial class MainPageModel : ObservableObject
         {
             case WallpaperRefreshStatus.Succeeded:
                 LastAttemptText = $"Updated at {attemptedAtText} with '{result.PhotoName}' from '{result.AlbumName}'.";
-                NextAttemptText = "Waiting for wallpaper scheduling.";
+                NextAttemptText = "Manual refresh only right now. Hourly refresh is planned.";
                 break;
             case WallpaperRefreshStatus.NoMatchingAlbums:
                 LastAttemptText = $"Couldn't refresh at {attemptedAtText} because no matching OneDrive albums were available.";
-                NextAttemptText = "Will resume after a matching album is available.";
+                NextAttemptText = "Add a matching album, then tap Refresh lockscreen wallpaper.";
                 break;
             case WallpaperRefreshStatus.NoEligiblePhotos:
                 LastAttemptText = $"Couldn't refresh at {attemptedAtText} because the matching albums did not contain usable photos.";
-                NextAttemptText = "Will resume after matching albums contain usable photos.";
+                NextAttemptText = "Add usable photos, then tap Refresh lockscreen wallpaper.";
                 break;
             case WallpaperRefreshStatus.ReauthenticationRequired:
                 LastAttemptText = "Paused until OneDrive is reconnected.";
-                NextAttemptText = "Will resume after you sign in again.";
+                NextAttemptText = "Sign in again, then tap Refresh lockscreen wallpaper.";
                 break;
             default:
                 LastAttemptText = $"Wallpaper refresh failed at {attemptedAtText}.";
-                NextAttemptText = "Waiting for wallpaper scheduling.";
+                NextAttemptText = "Manual refresh only right now. Hourly refresh is planned.";
                 break;
         }
     }
@@ -662,7 +662,7 @@ public partial class MainPageModel : ObservableObject
     {
         IsPrimaryActionEnabled = false;
         PrimaryActionText = "Refreshing lockscreen wallpaper...";
-        SetFeedback("LockPaper is refreshing the lock-screen wallpaper.");
+        SetFeedback("LockPaper is changing the lock-screen wallpaper.");
     }
 
     private void HandleWallpaperRefreshResult(WallpaperRefreshResult result)

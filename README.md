@@ -5,11 +5,11 @@
 ![Coverage: Placeholder](https://img.shields.io/badge/coverage-placeholder-lightgrey)
 ![Platform: .NET%20MAUI](https://img.shields.io/badge/platform-.NET%20MAUI-512BD4)
 
-LockPaper is a minimal **.NET MAUI** app for **Windows** and **Android** that changes your **lock-screen wallpaper** using photos from a OneDrive album. The v1 goal is intentionally small: sign in with a personal Microsoft account, find a matching album, rotate the lock-screen image on a best-effort hourly cadence, and let the user trigger a manual refresh from one simple screen.
+LockPaper is a minimal **.NET MAUI** app for **Windows** and **Android** that changes your **lock-screen wallpaper** using photos from a OneDrive album. The v1 goal is intentionally small: sign in with a personal Microsoft account, find a matching album, and trigger lock-screen updates from one simple manual-refresh screen. Hourly refresh is planned, but not implemented yet.
 
 ![LockPaper preview placeholder](https://placehold.co/1200x760/png?text=LockPaper+UI+Preview)
 
-> Preview placeholder: app screenshots have not been captured yet. For current UI references, see the [connected mockup](docs/ui-mockups/LockPaperConnected/index.html), the [no albums found mockup](docs/ui-mockups/NoAlbumsFound/index.html), and the [disconnected mockup](docs/ui-mockups/LockPaperDisconnected/index.html).
+> Preview placeholder: app screenshots have not been captured yet. For current UI references and user-facing copy, see the [connected mockup](docs/ui-mockups/LockPaperConnected/index.html), the [no albums found mockup](docs/ui-mockups/NoAlbumsFound/index.html), and the [disconnected mockup](docs/ui-mockups/LockPaperDisconnected/index.html).
 
 ## ✨ Current scope
 
@@ -18,7 +18,7 @@ LockPaper is a minimal **.NET MAUI** app for **Windows** and **Android** that ch
 - Lock-screen wallpaper updates only.
 - Orientation-aware photo selection with random fallback.
 - Best-fit manual lock-screen refresh from a matching OneDrive album.
-- Best-effort hourly refresh remains pending.
+- Hourly refresh is planned for a future iteration.
 - A sparse, single-screen UI designed for a tiny personal/family audience.
 
 For the full product definition, see:
@@ -57,15 +57,7 @@ Also make sure the app registration is configured like this:
 - **Allow public client flows** is enabled.
 - **Microsoft Graph -> Delegated permissions** includes `Files.Read`.
 
-LockPaper logging is configured to send `ILogger` output to Azure Application Insights. Update the placeholder connection string in `src\LockPaper.Ui\appsettings.json` before checking in or deploying:
-
-```json
-{
-  "ApplicationInsights": {
-    "ConnectionString": "InstrumentationKey=..."
-  }
-}
-```
+LockPaper logging is configured to send `ILogger` output to Azure Application Insights when `ApplicationInsights:ConnectionString` is provided in configuration. Use your own local/environment-specific configuration value and keep real telemetry connection strings out of source control.
 
 If Windows sign-in shows:
 
@@ -84,7 +76,7 @@ After launching the app, you can:
 1. start from the signed-out state,
 2. sign in with a personal Microsoft account,
 3. let the app check OneDrive for matching wallpaper albums immediately after the connection succeeds,
-4. confirm that the connected state shows the Microsoft account, wallpaper album status, current display summary, and wallpaper attempt status,
+4. confirm that the connected state shows the Microsoft account, current display summary, and wallpaper attempt status,
 5. use **Refresh lockscreen wallpaper** to pick a random photo from a matching album while preferring the current display orientation and apply it to the lock screen,
 6. review the inline error guidance when no matching OneDrive albums are found or the matching albums do not contain usable photos, and
 7. log out from the title-bar affordance.
@@ -95,7 +87,7 @@ Notes:
 - Windows uses the supported packaged personalization API for lock-screen updates.
 - Windows lock-screen updates work best with JPG, JPEG, PNG, or BMP photos; HEIC/HEIF images should be converted first.
 - Windows applies one shared lock-screen image across all monitors because the platform does not support different lock-screen images per monitor.
-- Hourly scheduling is still pending. The current implementation covers the manual refresh flow and the related status feedback.
+- The current implementation is manual-refresh-first. Hourly scheduling is planned but still pending.
 
 ## 🛠️ Build and run locally
 
@@ -138,7 +130,7 @@ Additional test targets:
 .\run-local.ps1 -Target e2e-tests
 ```
 
-> The repository currently includes a basic placeholder unit-test project under `tests\LockPaper.Ui.UnitTests`.
+`tests\LockPaper.Ui.UnitTests` now covers shared logic across the MAUI client, including page-model behavior, album discovery, wallpaper source/selection/refresh flows, and configuration loading.
 
 ## 📁 Project layout
 

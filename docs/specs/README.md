@@ -1,6 +1,6 @@
 # LockPaper Specifications
 
-LockPaper is a cross-platform app for **Windows** and **Android** that updates a user's **lock-screen wallpaper** from favorite photos stored in a OneDrive album. The v1 experience is intentionally small: connect a personal Microsoft account, find the user's curated album, rotate the lock-screen image on a best-effort hourly cadence, and provide a simple screen to trigger a manual refresh.
+LockPaper is a cross-platform app for **Windows** and **Android** that updates a user's **lock-screen wallpaper** from favorite photos stored in a OneDrive album. The v1 experience is intentionally small: connect a personal Microsoft account, find the user's curated album, and let the user manually change the lock-screen wallpaper on demand.
 
 >This app is intended for an audience of one: basically me. So the product should favor a very minimal UI and low ceremony over broad configurability.
 
@@ -41,10 +41,8 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 - Lock-screen wallpaper updates only.
 - Random photo selection from the discovered album.
 - Orientation-aware filtering before fallback selection.
-- Best-effort hourly background refresh.
 - A minimal in-app screen with:
   - current connection/status summary, including the signed-in Microsoft account
-  - a wallpaper album status card that shows whether any matching albums are ready
   - one display summary card that keeps every detected screen, monitor, or display grouped together as simple rectangles with each display's resolution shown inside its rectangle and the current lock-screen wallpaper thumbnail shown behind the text when one is available
   - a manual "change wallpaper now" action
   - basic success and error feedback
@@ -57,6 +55,10 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 - Rich gallery browsing, preview, or photo management.
 - Advanced repeat-avoidance or shuffle logic.
 - Editing or creating OneDrive albums from within the app.
+
+## Planned for future releases
+
+- **Best-effort hourly background refresh**: LockPaper should attempt a wallpaper change every hour, targeting the top of the hour where platform scheduling allows it. The next-attempt card will surface the scheduled target when this is shipped. Background execution timing is subject to operating-system scheduling; Android in particular may defer background runs.
 
 ## Primary user flow
 
@@ -71,7 +73,7 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 7. If matching-orientation photos exist, LockPaper randomly selects one of them.
 8. If no photos match the device orientation, LockPaper randomly selects any photo from the chosen album.
 9. LockPaper applies the photo to the lock screen.
-10. LockPaper repeats the process on a best-effort hourly cadence and also when the user taps the manual change button.
+10. LockPaper also repeats the process when the user taps the manual change button.
 
 ## Functional requirements
 
@@ -100,12 +102,9 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 
 ### FR4. Wallpaper refresh cadence
 
-- The app should attempt to refresh the lock-screen wallpaper **every hour**, targeting the top of the hour where platform scheduling allows it.
-- The app must treat this cadence as **best effort**, not guaranteed real-time execution.
-- If the operating system delays or suppresses a scheduled run, the app should perform the next wallpaper change at the next available background execution opportunity.
 - The app must allow the user to trigger a wallpaper change manually at any time while signed in.
-- All displayed times, last-attempt timestamps, and wallpaper refresh scheduling references must use the **device's local time**.
-- The v1 spec explicitly ignores time-zone crossover handling and cross-device time-zone reconciliation.
+- All displayed times and last-attempt timestamps must use the **device's local time**.
+- Best-effort hourly background refresh is **planned for a future release** and is not part of v1.
 
 ### FR5. Wallpaper application
 
@@ -119,11 +118,10 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 - The main screen must expose a single prominent action to change the wallpaper immediately.
 - The main screen must show basic status, including:
   - sign-in state through a Microsoft account card
-  - wallpaper album state through a dedicated status card
   - a single display summary card for the attached screen or monitors, using the current lock-screen wallpaper thumbnail when it is available and the existing solid-color fallback otherwise, with the resolution shown inside each display rectangle
   - whether a matching album was found
   - the last change attempt result
-  - the next scheduled attempt target or scheduling state
+  - a next-attempt placeholder card (shows honest placeholder copy while hourly scheduling is not yet shipped)
 - On Windows, the display summary card may show more than one attached monitor at the same time.
 - On Android, the display summary should normally show the current device screen only.
 - The v1 UI does not need a full settings surface.
@@ -143,7 +141,7 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 ## Assumptions and constraints
 
 - The repository's current app direction is **.NET MAUI** targeting Android and Windows, so the product spec assumes a shared cross-platform UI shell with platform-specific wallpaper services.
-- Background execution behavior is controlled by the operating system; Android in particular may defer exact hourly runs.
+- When hourly background refresh is implemented, execution timing will be subject to operating-system scheduling; Android in particular may defer background runs.
 - Users are responsible for curating the OneDrive album contents.
 - Users may rotate between portrait and landscape devices; the app should evaluate orientation per device at runtime rather than assuming one fixed preference.
 - Time-related UI and scheduling behavior should be interpreted in the current device's local time zone.
@@ -159,7 +157,7 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 2. **Album discovery and metadata sync**: locate candidate albums, read photo metadata, and normalize orientation details.
 3. **Selection engine**: implement orientation-aware random picking with fallback behavior.
 4. **Platform wallpaper services**: create Windows and Android services that apply lock-screen wallpapers and report result status.
-5. **Scheduling and persistence**: track last run, next best-effort run target, and recent outcome.
+5. **Persistence**: track last run and recent outcome. Background scheduling is deferred to a future workstream.
 6. **Minimal UI**: build the status screen and manual change action described in `docs/specs/ui.md`.
 7. **Testing**: cover album discovery, selection rules, platform abstractions, and view-model logic with automated tests.
 
