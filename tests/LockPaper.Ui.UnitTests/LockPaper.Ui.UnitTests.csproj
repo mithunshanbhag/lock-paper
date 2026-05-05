@@ -23,6 +23,7 @@
     <Compile Include="..\..\src\LockPaper.Ui\Constants\ConfigKeys.cs" Link="Source\Constants\ConfigKeys.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\AppSettingsConfigurationLoader.cs" Link="Source\Misc\Utilities\AppSettingsConfigurationLoader.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\DeviceDisplayInfoFactory.cs" Link="Source\Misc\Utilities\DeviceDisplayInfoFactory.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\WallpaperTargetDisplayNormalizer.cs" Link="Source\Misc\Utilities\WallpaperTargetDisplayNormalizer.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\ApplicationInsightsConfig.cs" Link="Source\Models\ApplicationInsightsConfig.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\DeviceDisplayInfo.cs" Link="Source\Models\DeviceDisplayInfo.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\DisplaySnapshot.cs" Link="Source\Models\DisplaySnapshot.cs" />

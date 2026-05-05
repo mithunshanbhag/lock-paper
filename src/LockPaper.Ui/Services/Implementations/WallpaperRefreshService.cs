@@ -1,3 +1,4 @@
+using LockPaper.Ui.Misc.Utilities;
 using LockPaper.Ui.Models;
 using LockPaper.Ui.Services.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -33,9 +34,10 @@ public sealed class WallpaperRefreshService(
                 return WallpaperRefreshResult.Failed(attemptedAtLocal, 0, "LockPaper couldn't read the current display details.");
             }
 
+            var wallpaperTargetDisplay = GetWallpaperTargetDisplay(targetDisplay);
             logger.LogInformation(
                 "Wallpaper refresh selected target display {DisplayLabel}.",
-                FormatDisplayLabel(targetDisplay));
+                FormatDisplayLabel(wallpaperTargetDisplay));
 
             IReadOnlyList<OneDriveWallpaperAlbum> matchingAlbums;
             try
@@ -81,58 +83,86 @@ public sealed class WallpaperRefreshService(
                     album.Name,
                     photos.Count);
 
-                var selectedPhoto = wallpaperSelectionService.SelectBestPhoto(photos, targetDisplay);
-                if (selectedPhoto is null)
+                var remainingPhotos = photos.ToList();
+                while (remainingPhotos.Count > 0)
                 {
+                    var selectedPhoto = wallpaperSelectionService.SelectBestPhoto(remainingPhotos, wallpaperTargetDisplay);
+                    if (selectedPhoto is null)
+                    {
+                        break;
+                    }
+
                     logger.LogInformation(
-                        "Skipping album '{AlbumName}' because no eligible photo could be selected for target display {DisplayLabel}.",
+                        "Selected photo '{PhotoName}' ({PhotoWidth}x{PhotoHeight}) from album '{AlbumName}' for target display {DisplayLabel}.",
+                        selectedPhoto.Name,
+                        selectedPhoto.PixelWidth,
+                        selectedPhoto.PixelHeight,
                         album.Name,
-                        FormatDisplayLabel(targetDisplay));
-                    continue;
-                }
+                        FormatDisplayLabel(wallpaperTargetDisplay));
 
-                logger.LogInformation(
-                    "Selected photo '{PhotoName}' ({PhotoWidth}x{PhotoHeight}) from album '{AlbumName}' for target display {DisplayLabel}.",
-                    selectedPhoto.Name,
-                    selectedPhoto.PixelWidth,
-                    selectedPhoto.PixelHeight,
-                    album.Name,
-                    FormatDisplayLabel(targetDisplay));
+                    byte[] imageBytes;
+                    try
+                    {
+                        imageBytes = await oneDriveWallpaperSourceService
+                            .DownloadPhotoBytesAsync(selectedPhoto.Id, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (InvalidOperationException exception)
+                    {
+                        return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                    }
 
-                byte[] imageBytes;
-                try
-                {
-                    imageBytes = await oneDriveWallpaperSourceService
-                        .DownloadPhotoBytesAsync(selectedPhoto.Id, cancellationToken)
+#if ANDROID
+                    var orientationMatchesTarget = AndroidWallpaperImageUtility.TryMatchesTargetOrientation(
+                        imageBytes,
+                        wallpaperTargetDisplay.PixelWidth,
+                        wallpaperTargetDisplay.PixelHeight);
+                    if (orientationMatchesTarget is null)
+                    {
+                        logger.LogWarning(
+                            "LockPaper could not inspect the EXIF-aware dimensions for photo '{PhotoName}'. Proceeding with wallpaper apply.",
+                            selectedPhoto.Name);
+                    }
+                    else if (!orientationMatchesTarget.Value && remainingPhotos.Count > 1)
+                    {
+                        logger.LogInformation(
+                            "Skipping photo '{PhotoName}' for Android lock-screen wallpaper because its EXIF-aware dimensions do not match target display {DisplayLabel}. Remaining candidates in album: {RemainingCandidateCount}.",
+                            selectedPhoto.Name,
+                            FormatDisplayLabel(wallpaperTargetDisplay),
+                            remainingPhotos.Count - 1);
+                        remainingPhotos.RemoveAll(photo => string.Equals(photo.Id, selectedPhoto.Id, StringComparison.OrdinalIgnoreCase));
+                        continue;
+                    }
+#endif
+
+                    var localFilePath = await SaveWallpaperFileAsync(selectedPhoto, imageBytes, cancellationToken).ConfigureAwait(false);
+                    logger.LogInformation(
+                        "Saved wallpaper candidate '{PhotoName}' to {LocalFilePath} ({ByteCount} bytes).",
+                        selectedPhoto.Name,
+                        localFilePath,
+                        imageBytes.Length);
+
+                    await lockScreenWallpaperService
+                        .ApplyAsync(localFilePath, cancellationToken)
                         .ConfigureAwait(false);
-                }
-                catch (InvalidOperationException exception)
-                {
-                    return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
-                }
 
-                var localFilePath = await SaveWallpaperFileAsync(selectedPhoto, imageBytes, cancellationToken).ConfigureAwait(false);
-                logger.LogInformation(
-                    "Saved wallpaper candidate '{PhotoName}' to {LocalFilePath} ({ByteCount} bytes).",
-                    selectedPhoto.Name,
-                    localFilePath,
-                    imageBytes.Length);
+                    logger.LogInformation(
+                        "Applied wallpaper candidate '{PhotoName}' from album '{AlbumName}' to the lock screen.",
+                        selectedPhoto.Name,
+                        album.Name);
 
-                await lockScreenWallpaperService
-                    .ApplyAsync(localFilePath, cancellationToken)
-                    .ConfigureAwait(false);
+                    return WallpaperRefreshResult.Succeeded(
+                        attemptedAtLocal,
+                        matchingAlbumCount,
+                        album.Name,
+                        selectedPhoto.Name,
+                        localFilePath);
+                }
 
                 logger.LogInformation(
-                    "Applied wallpaper candidate '{PhotoName}' from album '{AlbumName}' to the lock screen.",
-                    selectedPhoto.Name,
-                    album.Name);
-
-                return WallpaperRefreshResult.Succeeded(
-                    attemptedAtLocal,
-                    matchingAlbumCount,
+                    "Skipping album '{AlbumName}' because no eligible photo could be selected for target display {DisplayLabel}.",
                     album.Name,
-                    selectedPhoto.Name,
-                    localFilePath);
+                    FormatDisplayLabel(wallpaperTargetDisplay));
             }
 
             logger.LogInformation(
@@ -179,6 +209,15 @@ public sealed class WallpaperRefreshService(
             .ThenByDescending(display => (long)display.PixelWidth * display.PixelHeight)
             .FirstOrDefault();
 
+    private static DeviceDisplayInfo GetWallpaperTargetDisplay(DeviceDisplayInfo display)
+    {
+#if ANDROID
+        return WallpaperTargetDisplayNormalizer.NormalizeForPortraitLockScreen(display);
+#else
+        return display;
+#endif
+    }
+
     private static string FormatDisplayLabel(DeviceDisplayInfo display) =>
         $"{display.PixelWidth}x{display.PixelHeight}, primary={display.IsPrimary}";
 
@@ -190,11 +229,15 @@ public sealed class WallpaperRefreshService(
         var wallpapersDirectory = GetWallpapersDirectory();
         Directory.CreateDirectory(wallpapersDirectory);
 
+#if ANDROID
+        var fileExtension = ".jpg";
+#else
         var fileExtension = Path.GetExtension(photo.Name);
         if (string.IsNullOrWhiteSpace(fileExtension))
         {
             fileExtension = ".jpg";
         }
+#endif
 
         var safeFileName = SanitizeFileName(Path.GetFileNameWithoutExtension(photo.Name));
         var wallpaperFilePath = Path.Combine(

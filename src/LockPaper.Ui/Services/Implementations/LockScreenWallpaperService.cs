@@ -1,3 +1,4 @@
+using LockPaper.Ui.Misc.Utilities;
 using LockPaper.Ui.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.IO;
@@ -22,7 +23,7 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
 
 #if ANDROID
         logger.LogInformation("Applying lock-screen wallpaper from {LocalFilePath} on Android.", localFilePath);
-        await ApplyAndroidAsync(localFilePath).ConfigureAwait(false);
+        ApplyAndroid(localFilePath);
 #elif WINDOWS
         logger.LogInformation("Applying lock-screen wallpaper from {LocalFilePath} on Windows.", localFilePath);
         await ApplyWindowsAsync(localFilePath, cancellationToken).ConfigureAwait(false);
@@ -72,7 +73,7 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
     }
 
 #if ANDROID
-    private static Task ApplyAndroidAsync(string localFilePath)
+    private void ApplyAndroid(string localFilePath)
     {
         var context = Android.App.Application.Context;
         if (context is null)
@@ -83,9 +84,18 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
         var wallpaperManager = Android.App.WallpaperManager.GetInstance(context)
             ?? throw new InvalidOperationException("LockPaper couldn't access the Android wallpaper manager.");
 
+        var wallpaperTarget = AndroidWallpaperImageUtility.GetPortraitLockScreenTarget(context, wallpaperManager);
+        logger.LogInformation(
+            "Preparing Android lock-screen wallpaper to fit portrait target {TargetWidth}x{TargetHeight}.",
+            wallpaperTarget.Width,
+            wallpaperTarget.Height);
+        AndroidWallpaperImageUtility.PrepareWallpaperFile(
+            localFilePath,
+            wallpaperTarget.Width,
+            wallpaperTarget.Height);
+
         using var stream = File.OpenRead(localFilePath);
         wallpaperManager.SetStream(stream, null, true, Android.App.WallpaperManagerFlags.Lock);
-        return Task.CompletedTask;
     }
 
     private static async Task<string?> GetAndroidCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken)
