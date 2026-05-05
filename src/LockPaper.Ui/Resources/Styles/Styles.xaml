@@ -137,6 +137,35 @@
            TargetType="Border"
            BasedOn="{StaticResource BaseCardStyle}" />
 
+    <Style x:Key="HeroStatusCardStyle"
+           TargetType="Border"
+           BasedOn="{StaticResource BaseCardStyle}">
+        <Setter Property="Padding"
+                Value="16,16,18,18" />
+        <Setter Property="StrokeShape"
+                Value="RoundRectangle 20" />
+    </Style>
+
+    <Style x:Key="AccountChipBorderStyle"
+           TargetType="Border">
+        <Setter Property="Background"
+                Value="#2DFFFFFF" />
+        <Setter Property="StrokeThickness"
+                Value="0" />
+        <Setter Property="StrokeShape"
+                Value="RoundRectangle 999" />
+    </Style>
+
+    <Style x:Key="AccountChipLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                Value="14" />
+        <Setter Property="FontAttributes"
+                Value="Bold" />
+        <Setter Property="TextColor"
+                Value="{StaticResource TitleTextColor}" />
+    </Style>
+
     <Style x:Key="DisplaySummaryGroupStyle"
            TargetType="Border">
         <Setter Property="Background"
@@ -147,6 +176,20 @@
                 Value="{StaticResource CardBorderColor}" />
         <Setter Property="StrokeShape"
                 Value="RoundRectangle 16" />
+        <Setter Property="StrokeThickness"
+                Value="1" />
+    </Style>
+
+    <Style x:Key="DisplayStageStyle"
+           TargetType="Border">
+        <Setter Property="Background"
+                Value="#F7F9FD" />
+        <Setter Property="Padding"
+                Value="16" />
+        <Setter Property="Stroke"
+                Value="{StaticResource CardBorderColor}" />
+        <Setter Property="StrokeShape"
+                Value="RoundRectangle 18" />
         <Setter Property="StrokeThickness"
                 Value="1" />
     </Style>
@@ -200,7 +243,48 @@
         <Setter Property="LineHeight"
                 Value="1.4" />
         <Setter Property="TextColor"
-                Value="{StaticResource ScreenSupportTextColor}" />
+                 Value="{StaticResource ScreenSupportTextColor}" />
+    </Style>
+
+    <Style x:Key="RefreshFabButtonStyle"
+           TargetType="Button">
+        <Setter Property="WidthRequest"
+                Value="44" />
+        <Setter Property="HeightRequest"
+                Value="44" />
+        <Setter Property="CornerRadius"
+                Value="22" />
+        <Setter Property="Padding"
+                Value="0" />
+        <Setter Property="FontSize"
+                Value="24" />
+        <Setter Property="FontAttributes"
+                Value="Bold" />
+        <Setter Property="Background"
+                Value="{StaticResource PrimaryActionBackgroundBrush}" />
+        <Setter Property="TextColor"
+                Value="White" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource PrimaryActionPressedColor}"
+                        Opacity="0.22"
+                        Radius="18"
+                        Offset="0,10" />
+            </Setter.Value>
+        </Setter>
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="Opacity"
+                                    Value="0.7" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
     <Style x:Key="CardValueLabelStyle"
@@ -222,13 +306,59 @@
         <Setter Property="LineHeight"
                 Value="1.4" />
         <Setter Property="TextColor"
+                 Value="{StaticResource MutedTextColor}" />
+    </Style>
+
+    <Style x:Key="ActivityPrimaryLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                Value="20" />
+        <Setter Property="FontAttributes"
+                Value="Bold" />
+        <Setter Property="LineHeight"
+                Value="1.2" />
+        <Setter Property="TextColor"
+                Value="{StaticResource CardTextColor}" />
+    </Style>
+
+    <Style x:Key="ActivityDetailLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                Value="14" />
+        <Setter Property="LineHeight"
+                Value="1.35" />
+        <Setter Property="TextColor"
                 Value="{StaticResource MutedTextColor}" />
+    </Style>
+
+    <Style x:Key="StatusBadgeBorderStyle"
+           TargetType="Border">
+        <Setter Property="Background"
+                Value="#EAF0FF" />
+        <Setter Property="Padding"
+                Value="12,6" />
+        <Setter Property="StrokeThickness"
+                Value="0" />
+        <Setter Property="StrokeShape"
+                Value="RoundRectangle 999" />
+        <Setter Property="VerticalOptions"
+                Value="Start" />
+    </Style>
+
+    <Style x:Key="StatusBadgeLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                Value="12" />
+        <Setter Property="FontAttributes"
+                Value="Bold" />
+        <Setter Property="TextColor"
+                Value="{StaticResource PrimaryActionPressedColor}" />
     </Style>
 
     <Style x:Key="DisplayPreviewResolutionLabelStyle"
            TargetType="Label">
         <Setter Property="FontSize"
-                Value="12" />
+                Value="14" />
         <Setter Property="FontAttributes"
                 Value="Bold" />
         <Setter Property="LineHeight"

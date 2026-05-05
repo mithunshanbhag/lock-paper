@@ -46,7 +46,7 @@
                     MinimumHeightRequest="760"
                     Background="{StaticResource ConnectedScreenBackgroundBrush}"
                     IsVisible="{Binding ShowConnectedLayout}">
-                <VerticalStackLayout Spacing="18">
+                <VerticalStackLayout Spacing="14">
                     <Grid ColumnDefinitions="*,Auto"
                           ColumnSpacing="16">
                         <Label Text="LockPaper"
@@ -57,50 +57,61 @@
                                 Text="✓"
                                 Style="{StaticResource StatusIconButtonStyle}"
                                 IsVisible="{Binding IsLogoutVisible}"
-                                Clicked="OnLogoutClicked"
-                                SemanticProperties.Description="Open log out confirmation dialog" />
+                                 Clicked="OnLogoutClicked"
+                                 SemanticProperties.Description="Open log out confirmation dialog" />
                     </Grid>
 
-                    <Button Text="{Binding PrimaryActionText}"
-                            Style="{StaticResource PrimaryActionButtonStyle}"
-                            Command="{Binding PrimaryActionCommand}"
-                            IsEnabled="{Binding IsPrimaryActionEnabled}" />
+                    <Border Style="{StaticResource AccountChipBorderStyle}"
+                            HorizontalOptions="Start"
+                            Padding="12,8">
+                        <Label Text="{Binding AccountStatusText}"
+                               Style="{StaticResource AccountChipLabelStyle}"
+                               LineBreakMode="TailTruncation"
+                               MaxLines="1" />
+                    </Border>
 
                     <Label Text="{Binding FeedbackText}"
                            Style="{StaticResource ConnectedFeedbackLabelStyle}"
                            IsVisible="{Binding ShowFeedback}" />
 
-                     <Border Style="{StaticResource StatusCardStyle}">
-                         <VerticalStackLayout Spacing="8">
-                             <Label Text="Microsoft account"
-                                    Style="{StaticResource SectionLabelStyle}" />
-                             <Label Text="{Binding AccountStatusText}"
-                                     Style="{StaticResource CardValueLabelStyle}" />
-                         </VerticalStackLayout>
-                     </Border>
-
-                    <Border Style="{StaticResource StatusCardStyle}">
+                    <Border Style="{StaticResource HeroStatusCardStyle}">
                         <VerticalStackLayout Spacing="12">
-                             <Label Text="Display summary"
-                                     Style="{StaticResource SectionLabelStyle}" />
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="{Binding DisplaySummaryHeading}"
+                                           Style="{StaticResource SectionLabelStyle}" />
+                                    <Label Text="{Binding DisplaySummaryMetaText}"
+                                           Style="{StaticResource CardSummaryLabelStyle}" />
+                                </VerticalStackLayout>
+
+                                <Button Grid.Column="1"
+                                        Text="↻"
+                                        Style="{StaticResource RefreshFabButtonStyle}"
+                                        Command="{Binding PrimaryActionCommand}"
+                                        IsEnabled="{Binding IsPrimaryActionEnabled}"
+                                        SemanticProperties.Description="{Binding PrimaryActionText}" />
+                            </Grid>
+
                             <Label Text="{Binding DisplaySummaryText}"
                                    Style="{StaticResource CardSummaryLabelStyle}"
                                    IsVisible="{Binding ShowDisplaySummaryText}" />
 
-                            <Border Style="{StaticResource DisplaySummaryGroupStyle}">
+                            <Border Style="{StaticResource DisplayStageStyle}"
+                                    IsVisible="{Binding ShowDisplayPreviewStage}">
                                 <FlexLayout BindableLayout.ItemsSource="{Binding DisplayPreviews}"
                                             Wrap="Wrap"
                                             Direction="Row"
                                             AlignItems="Start"
-                                            JustifyContent="Start">
+                                            JustifyContent="Center">
                                     <BindableLayout.ItemTemplate>
                                         <DataTemplate x:DataType="models:DisplayPreview">
                                             <Border Background="{Binding PreviewColor, Converter={StaticResource HexColorToBrushConverter}}"
                                                     StrokeThickness="0"
-                                                    StrokeShape="RoundRectangle 14"
+                                                    StrokeShape="RoundRectangle 24"
                                                     WidthRequest="{Binding PreviewWidth}"
                                                     HeightRequest="{Binding PreviewHeight}"
-                                                    Margin="0,0,12,12"
+                                                    Margin="6"
                                                     Padding="0"
                                                     HorizontalOptions="Center">
                                                 <Grid>
@@ -125,20 +136,45 @@
                     </Border>
 
                     <Border Style="{StaticResource StatusCardStyle}">
-                        <VerticalStackLayout Spacing="8">
-                            <Label Text="Last attempt"
-                                   Style="{StaticResource SectionLabelStyle}" />
-                            <Label Text="{Binding LastAttemptText}"
-                                   Style="{StaticResource CardValueLabelStyle}" />
-                        </VerticalStackLayout>
-                    </Border>
+                        <VerticalStackLayout Spacing="14">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Last update"
+                                           Style="{StaticResource SectionLabelStyle}" />
+                                    <Label Text="{Binding LastAttemptText}"
+                                           Style="{StaticResource ActivityPrimaryLabelStyle}" />
+                                </VerticalStackLayout>
 
-                    <Border Style="{StaticResource StatusCardStyle}">
-                        <VerticalStackLayout Spacing="8">
-                            <Label Text="Next attempt"
-                                   Style="{StaticResource SectionLabelStyle}" />
-                            <Label Text="{Binding NextAttemptText}"
-                                   Style="{StaticResource CardValueLabelStyle}" />
+                                <Border Grid.Column="1"
+                                        Style="{StaticResource StatusBadgeBorderStyle}">
+                                    <Label Text="{Binding LastAttemptStatusText}"
+                                           Style="{StaticResource StatusBadgeLabelStyle}" />
+                                </Border>
+                            </Grid>
+
+                            <Label Text="{Binding LastAttemptDetailText}"
+                                   Style="{StaticResource ActivityDetailLabelStyle}"
+                                   IsVisible="{Binding ShowLastAttemptDetailText}" />
+
+                            <BoxView HeightRequest="1"
+                                     Color="{StaticResource CardBorderColor}" />
+
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Next"
+                                           Style="{StaticResource SectionLabelStyle}" />
+                                    <Label Text="{Binding NextAttemptText}"
+                                           Style="{StaticResource ActivityPrimaryLabelStyle}" />
+                                </VerticalStackLayout>
+
+                                <Border Grid.Column="1"
+                                        Style="{StaticResource StatusBadgeBorderStyle}">
+                                    <Label Text="{Binding NextAttemptStatusText}"
+                                           Style="{StaticResource StatusBadgeLabelStyle}" />
+                                </Border>
+                            </Grid>
                         </VerticalStackLayout>
                     </Border>
                 </VerticalStackLayout>

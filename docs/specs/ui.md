@@ -26,11 +26,10 @@ Required elements:
 
 - App title.
 - A lightweight logout affordance next to the app title, such as a green tick icon.
-- Primary action button.
-- A **Microsoft account** card showing the connected personal account label.
-- A single **Display summary** card showing every attached display together inside that card as rectangles with the display resolution shown inside each rectangle.
-- A **Last attempt** card with a lightweight success/failure or pending indicator.
-- A **Next attempt** card showing honest placeholder copy while hourly background refresh is not yet shipped.
+- A primary manual refresh action. It can be a compact icon button or FAB placed inside the display-summary card instead of a full-width text button, as long as it remains obvious and reachable.
+- A connected Microsoft account summary shown compactly near the top of the screen; it can be a chip, row, or small card rather than a full-height section.
+- A single **Display summary** card that acts as the main visual anchor and shows every attached display together inside that card as rectangles with the display resolution shown inside each rectangle.
+- A concise activity area for **Last attempt** and **Next attempt** details. These can be shown as compact rows inside one shared card instead of two large cards.
 
 ### 3. Problem states
 
@@ -41,7 +40,7 @@ The connected/disconnected screen should adapt to these situations instead of br
 - **Album empty or ineligible** - explain that usable photos are required.
 - **Change in progress** - disable the primary button and show progress text.
 - **Last attempt failed** - show a concise error summary and let the user retry.
-- **Wallpaper scheduling not ready yet** - keep the last-attempt and next-attempt cards visible with honest placeholder text instead of hiding them.
+- **Wallpaper scheduling not ready yet** - keep the activity status visible with honest placeholder text instead of hiding it.
 - **No current lock-screen image available** - keep the solid-color display rectangles instead of a thumbnail.
 
 ## Layout guidance
@@ -49,7 +48,10 @@ The connected/disconnected screen should adapt to these situations instead of br
 - Use one shared portrait layout across Android and Windows.
 - Keep the main action visible without scrolling on common phone-sized dimensions.
 - Use a clean, card-based layout inspired by MudBlazor patterns.
+- Prefer one visually dominant display-summary surface plus one compact status surface instead of stacking many equally weighted cards.
 - Prioritize one clear primary action and only the few status fields the user actually needs.
+- Avoid duplicate connection indicators; if the title-row icon already communicates the signed-in state, do not repeat a separate **Connected** badge nearby.
+- Keep the connected account summary lightweight near the header instead of giving it the same visual weight as the main status content.
 - Keep every detected display inside the same display-summary card rather than splitting them into separate status cards.
 - Let the display-summary card wrap or stack its monitor rectangles as needed while staying readable in the portrait shell.
 - When the current lock-screen wallpaper can be resolved, use its thumbnail inside each display rectangle; otherwise keep the existing solid-color fallback.
@@ -62,6 +64,10 @@ The connected/disconnected screen should adapt to these situations instead of br
 - Present scheduling honestly as **best effort**.
 - Display all times using the current device's local time.
 - Use **screen** when only one display is present and **displays** when more than one is present.
+- Avoid labels that restate what the UI already communicates visually.
+- Keep last-attempt and next-attempt copy to a short line whenever possible.
+- Do not foreground long photo file names in the primary reading path; if the photo name is shown at all, treat it as secondary text and truncate it when space is tight.
+- Prefer terse status copy such as **Updated 6:36 pm** and **Manual only for now** over full sentences.
 - Do not add extra helper copy, primary/secondary labels, or monitor metadata when the rectangles already communicate the display summary clearly.
 - Before any manual refresh runs, the display summary should reflect the current lock-screen wallpaper thumbnail when one is available.
 - Do not imply that desktop wallpaper is managed in v1.
@@ -73,7 +79,7 @@ The connected/disconnected screen should adapt to these situations instead of br
 - Manual refresh should also update the display-summary thumbnail immediately after completion.
 - Activating the connected-state title icon should open a confirmation dialog before log out.
 - Error messages should stay concise and user-facing.
-- If no matching albums are found, the screen should keep the account, display summary, last attempt, and next attempt cards visible while explaining that wallpaper changes are paused.
+- If no matching albums are found, the screen should keep the account summary, display summary, and activity status visible while explaining that wallpaper changes are paused.
 - V1 should not require a settings page to complete the basic experience.
 
 ## Mockup reference

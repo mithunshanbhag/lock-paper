@@ -32,9 +32,16 @@ public class MainPageModelTests
         Assert.False(model.ShowFeedback);
         Assert.Equal(string.Empty, model.AccountStatusText);
         Assert.Equal(string.Empty, model.AlbumStatusText);
+        Assert.Equal("Current screen", model.DisplaySummaryHeading);
+        Assert.Equal(string.Empty, model.DisplaySummaryMetaText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
+        Assert.False(model.ShowDisplayPreviewStage);
         Assert.Equal(string.Empty, model.LastAttemptText);
+        Assert.Equal(string.Empty, model.LastAttemptDetailText);
+        Assert.False(model.ShowLastAttemptDetailText);
+        Assert.Equal(string.Empty, model.LastAttemptStatusText);
         Assert.Equal(string.Empty, model.NextAttemptText);
+        Assert.Equal(string.Empty, model.NextAttemptStatusText);
         Assert.Empty(model.DisplayPreviews);
     }
 
@@ -55,7 +62,7 @@ public class MainPageModelTests
 
         await model.InitializeAsync();
 
-        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
+        Assert.Equal("Refresh lock screen", model.PrimaryActionText);
         Assert.True(model.IsPrimaryActionEnabled);
         Assert.True(model.IsLogoutVisible);
         Assert.False(model.ShowSignedOutLayout);
@@ -63,10 +70,17 @@ public class MainPageModelTests
         Assert.False(model.ShowFeedback);
         Assert.Equal("family@example.com", model.AccountStatusText);
         Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
+        Assert.Equal("Current screen", model.DisplaySummaryHeading);
+        Assert.Equal("1080 x 1920", model.DisplaySummaryMetaText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplaySummaryText);
-        Assert.Equal("No wallpaper change has run yet.", model.LastAttemptText);
-        Assert.Equal("Manual refresh only right now. Hourly refresh is planned.", model.NextAttemptText);
+        Assert.True(model.ShowDisplayPreviewStage);
+        Assert.Equal("No update yet", model.LastAttemptText);
+        Assert.Equal("Ready when you are", model.LastAttemptDetailText);
+        Assert.True(model.ShowLastAttemptDetailText);
+        Assert.Equal("Ready", model.LastAttemptStatusText);
+        Assert.Equal("Manual only for now", model.NextAttemptText);
+        Assert.Equal("Hourly later", model.NextAttemptStatusText);
         Assert.Single(model.DisplayPreviews);
         Assert.Equal("1080 x 1920", model.DisplayPreviews[0].ResolutionText);
         Assert.False(model.DisplayPreviews[0].ShowWallpaperThumbnail);
@@ -112,13 +126,15 @@ public class MainPageModelTests
 
         await model.PrimaryActionCommand.ExecuteAsync(null);
 
-        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
+        Assert.Equal("Refresh lock screen", model.PrimaryActionText);
         Assert.True(model.ShowConnectedLayout);
         Assert.False(model.ShowSignedOutLayout);
         Assert.Equal("family@example.com", model.AccountStatusText);
         Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplaySummaryText);
+        Assert.Equal("Current screen", model.DisplaySummaryHeading);
+        Assert.Equal("1080 x 1920", model.DisplaySummaryMetaText);
         Assert.Equal(4, dispatcher.DispatchCount);
     }
 
@@ -142,7 +158,7 @@ public class MainPageModelTests
 
         await WaitForConditionAsync(() => model.ShowConnectedLayout);
 
-        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
+        Assert.Equal("Refresh lock screen", model.PrimaryActionText);
         Assert.True(model.ShowConnectedLayout);
         Assert.False(model.ShowSignedOutLayout);
         Assert.Equal("family@example.com", model.AccountStatusText);
@@ -183,8 +199,11 @@ public class MainPageModelTests
         Assert.True(model.ShowFeedback);
         Assert.Contains("sign in again", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Reconnect to check matching albums.", model.AlbumStatusText);
-        Assert.Equal("Paused until OneDrive is reconnected.", model.LastAttemptText);
-        Assert.Equal("Sign in again, then tap Refresh lockscreen wallpaper.", model.NextAttemptText);
+        Assert.Equal("Reconnect needed", model.LastAttemptText);
+        Assert.Equal("OneDrive needs another sign-in", model.LastAttemptDetailText);
+        Assert.Equal("Paused", model.LastAttemptStatusText);
+        Assert.Equal("Sign in again", model.NextAttemptText);
+        Assert.Equal("Then refresh", model.NextAttemptStatusText);
     }
 
     [Fact]
@@ -261,8 +280,11 @@ public class MainPageModelTests
         Assert.Equal("No matching albums found.", model.AlbumStatusText);
         Assert.Contains("Create or rename an album", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("lockpaper", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("No matching OneDrive album yet.", model.LastAttemptText);
-        Assert.Equal("Add a matching album, then tap Refresh lockscreen wallpaper.", model.NextAttemptText);
+        Assert.Equal("No matching album", model.LastAttemptText);
+        Assert.Equal("Wallpaper changes are paused", model.LastAttemptDetailText);
+        Assert.Equal("Paused", model.LastAttemptStatusText);
+        Assert.Equal("Add a matching album", model.NextAttemptText);
+        Assert.Equal("Then refresh", model.NextAttemptStatusText);
         Assert.Equal(4, dispatcher.DispatchCount);
     }
 
@@ -322,9 +344,15 @@ public class MainPageModelTests
         Assert.False(model.ShowConnectedLayout);
         Assert.Equal(string.Empty, model.AccountStatusText);
         Assert.Equal(string.Empty, model.AlbumStatusText);
+        Assert.Equal("Current screen", model.DisplaySummaryHeading);
+        Assert.Equal(string.Empty, model.DisplaySummaryMetaText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
+        Assert.False(model.ShowDisplayPreviewStage);
         Assert.Equal(string.Empty, model.LastAttemptText);
+        Assert.Equal(string.Empty, model.LastAttemptDetailText);
+        Assert.Equal(string.Empty, model.LastAttemptStatusText);
         Assert.Equal(string.Empty, model.NextAttemptText);
+        Assert.Equal(string.Empty, model.NextAttemptStatusText);
         Assert.Empty(model.DisplayPreviews);
         Assert.Equal(4, dispatcher.DispatchCount);
     }
@@ -366,12 +394,15 @@ public class MainPageModelTests
         await model.InitializeAsync();
 
         Assert.Equal("1 matching album is ready.", model.AlbumStatusText);
+        Assert.Equal("Current displays", model.DisplaySummaryHeading);
+        Assert.Equal("2 displays", model.DisplaySummaryMetaText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplaySummaryText);
+        Assert.True(model.ShowDisplayPreviewStage);
         Assert.Equal(2, model.DisplayPreviews.Count);
         Assert.Equal("2560 x 1440", model.DisplayPreviews[0].ResolutionText);
         Assert.Equal("1080 x 1920", model.DisplayPreviews[1].ResolutionText);
-        Assert.Equal(108d, model.DisplayPreviews[0].PreviewWidth);
+        Assert.Equal(180d, model.DisplayPreviews[0].PreviewWidth);
         Assert.True(model.DisplayPreviews[1].PreviewHeight > model.DisplayPreviews[1].PreviewWidth);
         Assert.Equal(3, dispatcher.DispatchCount);
     }
@@ -488,11 +519,15 @@ public class MainPageModelTests
 
         Assert.Equal(0, authenticationService.SignInCallCount);
         Assert.Equal(1, wallpaperRefreshService.RefreshCallCount);
-        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
+        Assert.Equal("Refresh lock screen", model.PrimaryActionText);
         Assert.True(model.IsPrimaryActionEnabled);
-        Assert.Contains("sunrise.jpg", model.LastAttemptText, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("lockpaper", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("Manual refresh only right now. Hourly refresh is planned.", model.NextAttemptText);
+        Assert.Equal(DateTimeOffset.Parse("2026-04-30T21:15:00+05:30").ToString("t"), model.LastAttemptText);
+        Assert.Equal("From lockpaper", model.LastAttemptDetailText);
+        Assert.Equal("Success", model.LastAttemptStatusText);
+        Assert.False(model.ShowFeedback);
+        Assert.Equal(string.Empty, model.FeedbackText);
+        Assert.Equal("Manual only for now", model.NextAttemptText);
+        Assert.Equal("Hourly later", model.NextAttemptStatusText);
         Assert.All(model.DisplayPreviews, preview =>
         {
             Assert.True(preview.ShowWallpaperThumbnail);
@@ -524,14 +559,17 @@ public class MainPageModelTests
         await model.InitializeAsync();
         await model.PrimaryActionCommand.ExecuteAsync(null);
 
-        Assert.Equal("Refresh lockscreen wallpaper", model.PrimaryActionText);
+        Assert.Equal("Refresh lock screen", model.PrimaryActionText);
         Assert.True(model.IsPrimaryActionEnabled);
         Assert.True(model.ShowConnectedLayout);
         Assert.False(model.ShowSignedOutLayout);
         Assert.False(model.FeedbackText.Contains("sign in again", StringComparison.OrdinalIgnoreCase));
         Assert.Contains("Windows rejected the lock-screen image", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Wallpaper refresh failed", model.LastAttemptText, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("Manual refresh only right now. Hourly refresh is planned.", model.NextAttemptText);
+        Assert.Equal(DateTimeOffset.Parse("2026-04-30T21:15:00+05:30").ToString("t"), model.LastAttemptText);
+        Assert.Equal("Refresh failed", model.LastAttemptDetailText);
+        Assert.Equal("Error", model.LastAttemptStatusText);
+        Assert.Equal("Manual only for now", model.NextAttemptText);
+        Assert.Equal("Try again", model.NextAttemptStatusText);
     }
 
     [Fact]
@@ -560,8 +598,11 @@ public class MainPageModelTests
         Assert.Equal("1 matching album was found, but it has no usable photos.", model.AlbumStatusText);
         Assert.Contains("usable photos", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("JPG, JPEG, PNG, or BMP", model.FeedbackText, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("did not contain usable photos", model.LastAttemptText, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("Add usable photos, then tap Refresh lockscreen wallpaper.", model.NextAttemptText);
+        Assert.Equal(DateTimeOffset.Parse("2026-04-30T21:15:00+05:30").ToString("t"), model.LastAttemptText);
+        Assert.Equal("No usable photos", model.LastAttemptDetailText);
+        Assert.Equal("Paused", model.LastAttemptStatusText);
+        Assert.Equal("Add usable photos", model.NextAttemptText);
+        Assert.Equal("Then refresh", model.NextAttemptStatusText);
     }
 
     #endregion

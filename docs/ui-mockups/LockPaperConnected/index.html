@@ -15,38 +15,51 @@
             <h1>LockPaper</h1>
             <button class="logout-trigger" type="button" aria-label="Open log out confirmation dialog">✓</button>
           </div>
+
+          <div class="account-bar" aria-label="Connected Microsoft account summary">
+            <span class="account-chip" title="mithunshanbhag@hotmail.com">mithunshanbhag@hotmail.com</span>
+          </div>
         </header>
 
-        <button class="primary-action" type="button">Refresh lockscreen wallpaper</button>
-
-        <section class="status-card">
-          <p class="label">Microsoft account</p>
-          <p class="value">family@example.com</p>
-        </section>
-
-        <section class="status-card">
-          <p class="label">Display summary</p>
-          <div class="display-summary-panel" aria-label="Connected device display summary">
-            <div class="display-previews">
-              <article class="display-preview">
-                <div class="display-rectangle display-rectangle--primary">2560 x 1440</div>
-              </article>
-
-              <article class="display-preview">
-                <div class="display-rectangle display-rectangle--secondary">1080 x 1920</div>
-              </article>
+        <section class="surface surface--hero" aria-label="Current display summary">
+          <div class="surface-head">
+            <div>
+              <p class="eyebrow">Current screen</p>
+              <p class="surface-meta">1080 x 2340</p>
             </div>
+            <button class="refresh-fab" type="button" aria-label="Refresh lock screen" title="Refresh lock screen">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M18 8a7 7 0 1 0 1.4 7.3" />
+                <path d="M18 3v5h-5" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="display-stage">
+            <div class="display-rectangle display-rectangle--phone">1080 x 2340</div>
           </div>
         </section>
 
-        <section class="status-card">
-          <p class="label">Last attempt</p>
-          <p class="value">No wallpaper change has run yet.</p>
-        </section>
+        <section class="surface" aria-label="Refresh activity summary">
+          <div class="status-row">
+            <div>
+              <p class="eyebrow">Last update</p>
+              <p class="status-primary">6:36 pm</p>
+            </div>
+            <span class="status-pill status-pill--success">Success</span>
+          </div>
 
-        <section class="status-card">
-          <p class="label">Next attempt</p>
-          <p class="value">Manual refresh only right now. Hourly refresh is planned.</p>
+          <p class="status-secondary">From lock-paper</p>
+
+          <div class="divider" aria-hidden="true"></div>
+
+          <div class="status-row">
+            <div>
+              <p class="eyebrow">Next</p>
+              <p class="status-primary">Manual only for now</p>
+            </div>
+            <span class="status-note">Hourly later</span>
+          </div>
         </section>
       </div>
     </section>
