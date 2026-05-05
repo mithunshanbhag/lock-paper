@@ -302,11 +302,8 @@ public sealed class WallpaperRefreshServiceTests : IDisposable
     }
 
     private static string GetPersistedWallpaperPhotoKeyFilePath() =>
-        Path.Combine(GetWallpaperStateDirectory(), "current-lockscreen-photo-key.txt");
+        WallpaperRefreshService.GetPersistedWallpaperPhotoKeyFilePath();
 
     private static string GetWallpaperStateDirectory() =>
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LockPaper",
-            "WallpaperState");
+        WallpaperRefreshService.GetWallpaperStateDirectory();
 }

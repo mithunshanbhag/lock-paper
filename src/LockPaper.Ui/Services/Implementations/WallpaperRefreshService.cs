@@ -15,7 +15,7 @@ public sealed class WallpaperRefreshService(
     IWallpaperSelectionService wallpaperSelectionService,
     ILogger<WallpaperRefreshService> logger) : IWallpaperRefreshService
 {
-    private const string PersistedWallpaperPhotoKeyFileName = "current-lockscreen-photo-key.txt";
+    internal const string PersistedWallpaperPhotoKeyFileName = "current-lockscreen-photo-key.txt";
 
     public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default) =>
         lockScreenWallpaperService.GetCurrentWallpaperPreviewFilePathAsync(cancellationToken);
@@ -254,7 +254,7 @@ public sealed class WallpaperRefreshService(
             .ConfigureAwait(false);
     }
 
-    private static async Task<string?> TryGetPersistedWallpaperPhotoKeyAsync(CancellationToken cancellationToken)
+    private async Task<string?> TryGetPersistedWallpaperPhotoKeyAsync(CancellationToken cancellationToken)
     {
         var persistedWallpaperPhotoKeyFilePath = GetPersistedWallpaperPhotoKeyFilePath();
         if (!File.Exists(persistedWallpaperPhotoKeyFilePath))
@@ -262,7 +262,20 @@ public sealed class WallpaperRefreshService(
             return null;
         }
 
-        var persistedWallpaperPhotoKey = (await File.ReadAllTextAsync(persistedWallpaperPhotoKeyFilePath, cancellationToken).ConfigureAwait(false)).Trim();
+        string persistedWallpaperPhotoKey;
+        try
+        {
+            persistedWallpaperPhotoKey = (await File.ReadAllTextAsync(persistedWallpaperPhotoKeyFilePath, cancellationToken).ConfigureAwait(false)).Trim();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(
+                exception,
+                "LockPaper couldn't read the persisted current-wallpaper photo key from {PersistedWallpaperPhotoKeyFilePath}.",
+                persistedWallpaperPhotoKeyFilePath);
+            return null;
+        }
+
         return string.IsNullOrWhiteSpace(persistedWallpaperPhotoKey)
             ? null
             : persistedWallpaperPhotoKey;
@@ -311,10 +324,10 @@ public sealed class WallpaperRefreshService(
 #endif
     }
 
-    private static string GetPersistedWallpaperPhotoKeyFilePath() =>
+    internal static string GetPersistedWallpaperPhotoKeyFilePath() =>
         Path.Combine(GetWallpaperStateDirectory(), PersistedWallpaperPhotoKeyFileName);
 
-    private static string GetWallpaperStateDirectory()
+    internal static string GetWallpaperStateDirectory()
     {
 #if WINDOWS
         return Path.Combine(
