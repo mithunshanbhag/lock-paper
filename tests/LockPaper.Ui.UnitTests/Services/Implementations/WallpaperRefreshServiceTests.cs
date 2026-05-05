@@ -173,6 +173,9 @@ public sealed class WallpaperRefreshServiceTests : IDisposable
             logger.Messages,
             message => message.Contains("started with 1 usable photo(s); considered 1", StringComparison.OrdinalIgnoreCase)
                 && message.Contains("skipped already-applied photos 1", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            logger.Messages,
+            message => message.Contains("Performance checkpoint WallpaperRefresh.RefreshAsync completed with outcome NoEligiblePhotos", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

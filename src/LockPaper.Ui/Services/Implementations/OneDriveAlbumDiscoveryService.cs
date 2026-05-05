@@ -1,3 +1,4 @@
+using LockPaper.Ui.Misc.Telemetry;
 using LockPaper.Ui.Models;
 using LockPaper.Ui.Services.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,9 @@ public sealed class OneDriveAlbumDiscoveryService(
 {
     public async Task<OneDriveAlbumDiscoveryResult> GetMatchingAlbumsAsync(CancellationToken cancellationToken = default)
     {
+        var checkpoint = PerformanceCheckpoint.StartNew("OneDriveAlbumDiscovery.GetMatchingAlbumsAsync");
+        var outcome = "Failed";
+
         try
         {
             var matchingAlbums = await oneDriveWallpaperSourceService
@@ -26,6 +30,7 @@ public sealed class OneDriveAlbumDiscoveryService(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
+            outcome = matchingAlbumNames.Length == 0 ? "NotFound" : "Found";
             return matchingAlbumNames.Length == 0
                 ? OneDriveAlbumDiscoveryResult.NotFound()
                 : OneDriveAlbumDiscoveryResult.Succeeded(matchingAlbumNames);
@@ -33,11 +38,13 @@ public sealed class OneDriveAlbumDiscoveryService(
         catch (InvalidOperationException exception)
         {
             logger.LogWarning(exception, "OneDrive album discovery could not acquire a Microsoft Graph access token.");
+            outcome = "Failed:token_unavailable";
             return OneDriveAlbumDiscoveryResult.Failed("token_unavailable", exception.Message);
         }
         catch (HttpRequestException exception)
         {
             logger.LogWarning(exception, "OneDrive album discovery failed while calling Microsoft Graph.");
+            outcome = "Failed:network_error";
             return OneDriveAlbumDiscoveryResult.Failed(
                 exception.StatusCode?.ToString() ?? "network_error",
                 exception.Message);
@@ -45,7 +52,12 @@ public sealed class OneDriveAlbumDiscoveryService(
         catch (JsonException exception)
         {
             logger.LogWarning(exception, "OneDrive album discovery received an unexpected Microsoft Graph payload.");
+            outcome = "Failed:invalid_response";
             return OneDriveAlbumDiscoveryResult.Failed("invalid_response", exception.Message);
+        }
+        finally
+        {
+            checkpoint.LogCompleted(logger, outcome);
         }
     }
 }

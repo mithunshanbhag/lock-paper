@@ -1,4 +1,5 @@
 using LockPaper.Ui.Misc.Utilities;
+using LockPaper.Ui.Misc.Telemetry;
 using LockPaper.Ui.Services.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.IO;
@@ -14,24 +15,46 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
 
     public async Task ApplyAsync(string localFilePath, CancellationToken cancellationToken = default)
     {
+        var checkpoint = PerformanceCheckpoint.StartNew("LockScreenWallpaper.ApplyAsync");
+        var outcome = "Succeeded";
+
         ArgumentException.ThrowIfNullOrWhiteSpace(localFilePath);
 
-        if (!File.Exists(localFilePath))
+        try
         {
-            throw new FileNotFoundException("LockPaper couldn't find the downloaded wallpaper image.", localFilePath);
-        }
+            if (!File.Exists(localFilePath))
+            {
+                outcome = "FileNotFound";
+                throw new FileNotFoundException("LockPaper couldn't find the downloaded wallpaper image.", localFilePath);
+            }
 
 #if ANDROID
-        logger.LogInformation("Applying lock-screen wallpaper from {LocalFilePath} on Android.", localFilePath);
-        ApplyAndroid(localFilePath);
+            logger.LogInformation("Applying lock-screen wallpaper from {LocalFilePath} on Android.", localFilePath);
+            ApplyAndroid(localFilePath);
 #elif WINDOWS
-        logger.LogInformation("Applying lock-screen wallpaper from {LocalFilePath} on Windows.", localFilePath);
-        await ApplyWindowsAsync(localFilePath, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Applying lock-screen wallpaper from {LocalFilePath} on Windows.", localFilePath);
+            await ApplyWindowsAsync(localFilePath, cancellationToken).ConfigureAwait(false);
 #else
-        throw new PlatformNotSupportedException("LockPaper can only change the lock-screen wallpaper on Android and Windows.");
+            outcome = "PlatformNotSupported";
+            throw new PlatformNotSupportedException("LockPaper can only change the lock-screen wallpaper on Android and Windows.");
 #endif
 
-        await PersistAppliedWallpaperFilePathAsync(localFilePath, cancellationToken).ConfigureAwait(false);
+            await PersistAppliedWallpaperFilePathAsync(localFilePath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            outcome = "Cancelled";
+            throw;
+        }
+        catch (Exception) when (outcome == "Succeeded")
+        {
+            outcome = "Failed";
+            throw;
+        }
+        finally
+        {
+            checkpoint.LogCompleted(logger, outcome);
+        }
     }
 
     public async Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default)

@@ -1,3 +1,4 @@
+using LockPaper.Ui.Misc.Telemetry;
 using LockPaper.Ui.Constants;
 using LockPaper.Ui.Models;
 using LockPaper.Ui.Services.Interfaces;
@@ -16,120 +17,180 @@ public sealed class OneDriveWallpaperSourceService(
 {
     public async Task<IReadOnlyList<OneDriveWallpaperAlbum>> GetMatchingAlbumsAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Loading matching OneDrive albums from Microsoft Graph.");
-        var accessToken = await oneDriveAuthenticationService
-            .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var checkpoint = PerformanceCheckpoint.StartNew("OneDriveWallpaperSource.GetMatchingAlbumsAsync");
+        var outcome = "Succeeded";
 
-        var matchingAlbums = new List<OneDriveWallpaperAlbum>();
-        var nextRequestUri = OneDriveAlbumDiscoveryConstants.AlbumsRequestUri;
-        var pageNumber = 0;
-
-        while (!string.IsNullOrWhiteSpace(nextRequestUri))
+        try
         {
-            pageNumber++;
-            using var response = await SendAsync(nextRequestUri, accessToken, cancellationToken).ConfigureAwait(false);
-            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Loading matching OneDrive albums from Microsoft Graph.");
+            var accessToken = await oneDriveAuthenticationService
+                .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
+                .ConfigureAwait(false);
 
-            var pageAlbums = GetMatchingAlbums(document.RootElement);
-            matchingAlbums.AddRange(pageAlbums);
-            nextRequestUri = GetNextPageRequestUri(document.RootElement);
+            var matchingAlbums = new List<OneDriveWallpaperAlbum>();
+            var nextRequestUri = OneDriveAlbumDiscoveryConstants.AlbumsRequestUri;
+            var pageNumber = 0;
+
+            while (!string.IsNullOrWhiteSpace(nextRequestUri))
+            {
+                pageNumber++;
+                using var response = await SendAsync(nextRequestUri, accessToken, cancellationToken).ConfigureAwait(false);
+                await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                var pageAlbums = GetMatchingAlbums(document.RootElement);
+                matchingAlbums.AddRange(pageAlbums);
+                nextRequestUri = GetNextPageRequestUri(document.RootElement);
+
+                logger.LogInformation(
+                    "Processed OneDrive album page {PageNumber}. Matching albums on page: {PageAlbumCount}. Has another page: {HasNextPage}.",
+                    pageNumber,
+                    pageAlbums.Count,
+                    !string.IsNullOrWhiteSpace(nextRequestUri));
+            }
+
+            var uniqueAlbums = matchingAlbums
+                .GroupBy(album => album.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray();
 
             logger.LogInformation(
-                "Processed OneDrive album page {PageNumber}. Matching albums on page: {PageAlbumCount}. Has another page: {HasNextPage}.",
-                pageNumber,
-                pageAlbums.Count,
-                !string.IsNullOrWhiteSpace(nextRequestUri));
+                "Loaded {AlbumCount} matching OneDrive album(s) across {PageCount} page(s).",
+                uniqueAlbums.Length,
+                pageNumber);
+
+            return uniqueAlbums;
         }
-
-        var uniqueAlbums = matchingAlbums
-            .GroupBy(album => album.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToArray();
-
-        logger.LogInformation(
-            "Loaded {AlbumCount} matching OneDrive album(s) across {PageCount} page(s).",
-            uniqueAlbums.Length,
-            pageNumber);
-
-        return uniqueAlbums;
+        catch (OperationCanceledException)
+        {
+            outcome = "Cancelled";
+            throw;
+        }
+        catch (Exception)
+        {
+            outcome = "Failed";
+            throw;
+        }
+        finally
+        {
+            checkpoint.LogCompleted(logger, outcome);
+        }
     }
 
     public async Task<IReadOnlyList<OneDriveWallpaperPhoto>> GetAlbumPhotosAsync(string albumId, CancellationToken cancellationToken = default)
     {
+        var checkpoint = PerformanceCheckpoint.StartNew("OneDriveWallpaperSource.GetAlbumPhotosAsync");
+        var outcome = "Succeeded";
+
         ArgumentException.ThrowIfNullOrWhiteSpace(albumId);
 
-        logger.LogInformation("Loading usable OneDrive photos for album {AlbumId}.", albumId);
-
-        var accessToken = await oneDriveAuthenticationService
-            .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var nextRequestUri = $"me/drive/items/{Uri.EscapeDataString(albumId)}/children?$select=id,name,image&$top=200";
-        var photos = new List<OneDriveWallpaperPhoto>();
-        var pageNumber = 0;
-        var restrictToWindowsCompatibleFormats = OperatingSystem.IsWindows();
-
-        while (!string.IsNullOrWhiteSpace(nextRequestUri))
+        try
         {
-            pageNumber++;
-            using var response = await SendAsync(nextRequestUri, accessToken, cancellationToken).ConfigureAwait(false);
-            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Loading usable OneDrive photos for album {AlbumId}.", albumId);
 
-            var pagePhotoResult = GetPhotoPageResult(document.RootElement, restrictToWindowsCompatibleFormats);
-            photos.AddRange(pagePhotoResult.Photos);
-            nextRequestUri = GetNextPageRequestUri(document.RootElement);
+            var accessToken = await oneDriveAuthenticationService
+                .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            var nextRequestUri = $"me/drive/items/{Uri.EscapeDataString(albumId)}/children?$select=id,name,image&$top=200";
+            var photos = new List<OneDriveWallpaperPhoto>();
+            var pageNumber = 0;
+            var restrictToWindowsCompatibleFormats = OperatingSystem.IsWindows();
+
+            while (!string.IsNullOrWhiteSpace(nextRequestUri))
+            {
+                pageNumber++;
+                using var response = await SendAsync(nextRequestUri, accessToken, cancellationToken).ConfigureAwait(false);
+                await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                var pagePhotoResult = GetPhotoPageResult(document.RootElement, restrictToWindowsCompatibleFormats);
+                photos.AddRange(pagePhotoResult.Photos);
+                nextRequestUri = GetNextPageRequestUri(document.RootElement);
+
+                logger.LogInformation(
+                    "Processed OneDrive photo page {PageNumber} for album {AlbumId}. Child items on page: {PageItemCount}. Image items on page: {PageImageItemCount}. Supported image items on page: {PageSupportedImageCount}. Usable photos on page: {PagePhotoCount}. Skipped unsupported image items on page: {SkippedUnsupportedImageCount}. Skipped image items with missing metadata on page: {SkippedMissingMetadataImageCount}. Skipped image items with invalid dimensions on page: {SkippedInvalidDimensionImageCount}. Has another page: {HasNextPage}.",
+                    pageNumber,
+                    albumId,
+                    pagePhotoResult.TotalItemCount,
+                    pagePhotoResult.ImageItemCount,
+                    pagePhotoResult.SupportedImageItemCount,
+                    pagePhotoResult.Photos.Count,
+                    pagePhotoResult.SkippedUnsupportedImageCount,
+                    pagePhotoResult.SkippedMissingMetadataImageCount,
+                    pagePhotoResult.SkippedInvalidDimensionImageCount,
+                    !string.IsNullOrWhiteSpace(nextRequestUri));
+            }
+
+            var uniquePhotos = photos
+                .GroupBy(photo => photo.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray();
+            var duplicatePhotoCount = photos.Count - uniquePhotos.Length;
 
             logger.LogInformation(
-                "Processed OneDrive photo page {PageNumber} for album {AlbumId}. Child items on page: {PageItemCount}. Image items on page: {PageImageItemCount}. Supported image items on page: {PageSupportedImageCount}. Usable photos on page: {PagePhotoCount}. Skipped unsupported image items on page: {SkippedUnsupportedImageCount}. Skipped image items with missing metadata on page: {SkippedMissingMetadataImageCount}. Skipped image items with invalid dimensions on page: {SkippedInvalidDimensionImageCount}. Has another page: {HasNextPage}.",
-                pageNumber,
+                "Loaded {PhotoCount} usable OneDrive photo(s) for album {AlbumId} across {PageCount} page(s). Duplicate photo ids removed: {DuplicatePhotoCount}.",
+                uniquePhotos.Length,
                 albumId,
-                pagePhotoResult.TotalItemCount,
-                pagePhotoResult.ImageItemCount,
-                pagePhotoResult.SupportedImageItemCount,
-                pagePhotoResult.Photos.Count,
-                pagePhotoResult.SkippedUnsupportedImageCount,
-                pagePhotoResult.SkippedMissingMetadataImageCount,
-                pagePhotoResult.SkippedInvalidDimensionImageCount,
-                !string.IsNullOrWhiteSpace(nextRequestUri));
+                pageNumber,
+                duplicatePhotoCount);
+
+            return uniquePhotos;
         }
-
-        var uniquePhotos = photos
-            .GroupBy(photo => photo.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToArray();
-        var duplicatePhotoCount = photos.Count - uniquePhotos.Length;
-
-        logger.LogInformation(
-            "Loaded {PhotoCount} usable OneDrive photo(s) for album {AlbumId} across {PageCount} page(s). Duplicate photo ids removed: {DuplicatePhotoCount}.",
-            uniquePhotos.Length,
-            albumId,
-            pageNumber,
-            duplicatePhotoCount);
-
-        return uniquePhotos;
+        catch (OperationCanceledException)
+        {
+            outcome = "Cancelled";
+            throw;
+        }
+        catch (Exception)
+        {
+            outcome = "Failed";
+            throw;
+        }
+        finally
+        {
+            checkpoint.LogCompleted(logger, outcome);
+        }
     }
 
     public async Task<byte[]> DownloadPhotoBytesAsync(string photoId, CancellationToken cancellationToken = default)
     {
+        var checkpoint = PerformanceCheckpoint.StartNew("OneDriveWallpaperSource.DownloadPhotoBytesAsync");
+        var outcome = "Succeeded";
+
         ArgumentException.ThrowIfNullOrWhiteSpace(photoId);
 
-        logger.LogInformation("Downloading OneDrive photo content for photo {PhotoId}.", photoId);
+        try
+        {
+            logger.LogInformation("Downloading OneDrive photo content for photo {PhotoId}.", photoId);
 
-        var accessToken = await oneDriveAuthenticationService
-            .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
-            .ConfigureAwait(false);
+            var accessToken = await oneDriveAuthenticationService
+                .GetMicrosoftGraphAccessTokenAsync(cancellationToken)
+                .ConfigureAwait(false);
 
-        using var response = await SendAsync(
-            $"me/drive/items/{Uri.EscapeDataString(photoId)}/content",
-            accessToken,
-            cancellationToken).ConfigureAwait(false);
+            using var response = await SendAsync(
+                $"me/drive/items/{Uri.EscapeDataString(photoId)}/content",
+                accessToken,
+                cancellationToken).ConfigureAwait(false);
 
-        var photoBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Downloaded {ByteCount} bytes for OneDrive photo {PhotoId}.", photoBytes.Length, photoId);
-        return photoBytes;
+            var photoBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Downloaded {ByteCount} bytes for OneDrive photo {PhotoId}.", photoBytes.Length, photoId);
+            return photoBytes;
+        }
+        catch (OperationCanceledException)
+        {
+            outcome = "Cancelled";
+            throw;
+        }
+        catch (Exception)
+        {
+            outcome = "Failed";
+            throw;
+        }
+        finally
+        {
+            checkpoint.LogCompleted(logger, outcome);
+        }
     }
 
     private async Task<HttpResponseMessage> SendAsync(

@@ -116,6 +116,9 @@ public sealed class OneDriveWallpaperSourceServiceTests
                 && message.Contains("Skipped unsupported image items on page: 1", StringComparison.OrdinalIgnoreCase)
                 && message.Contains("Skipped image items with missing metadata on page: 1", StringComparison.OrdinalIgnoreCase)
                 && message.Contains("Skipped image items with invalid dimensions on page: 1", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            logger.Messages,
+            message => message.Contains("Performance checkpoint OneDriveWallpaperSource.GetAlbumPhotosAsync completed with outcome Succeeded", StringComparison.OrdinalIgnoreCase));
     }
 
     #endregion

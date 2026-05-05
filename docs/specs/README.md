@@ -172,3 +172,4 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 
 - `docs/specs/ui.md` - UI-specific requirements for the v1 status screen.
 - `docs/specs/future.md` - deferred ideas and out-of-scope enhancements.
+- `docs/specs/future-performance.md` - current performance findings, telemetry gaps, and App Insights queries for future diagnosis.

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LockPaper.Ui.Constants;
+using LockPaper.Ui.Misc.Telemetry;
 using LockPaper.Ui.Models;
 using LockPaper.Ui.Services.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -139,15 +140,30 @@ public partial class MainPageModel : ObservableObject
 
     public async Task InitializeAsync()
     {
+        var checkpoint = PerformanceCheckpoint.StartNew("MainPageModel.InitializeAsync");
+        var outcome = "Succeeded";
         _logger.LogInformation("Initializing main page model. Already initialized: {HasInitialized}", _hasInitialized);
 
-        if (_hasInitialized)
+        try
         {
-            return;
-        }
+            if (_hasInitialized)
+            {
+                outcome = "AlreadyInitialized";
+                return;
+            }
 
-        _hasInitialized = true;
-        await RefreshConnectionStateAsync();
+            _hasInitialized = true;
+            await RefreshConnectionStateAsync();
+        }
+        catch (Exception)
+        {
+            outcome = "Failed";
+            throw;
+        }
+        finally
+        {
+            checkpoint.LogCompleted(_logger, outcome);
+        }
     }
 
     public async Task LogOutAsync()
@@ -270,31 +286,47 @@ public partial class MainPageModel : ObservableObject
 
     private async Task RefreshConnectionStateAsync()
     {
-        _logger.LogInformation("Refreshing cached OneDrive connection state.");
-        var connectionState = await _oneDriveAuthenticationService.GetCurrentConnectionStateAsync();
-        _logger.LogInformation("Fetched cached OneDrive state {StateStatus} for account {AccountLabel}.", connectionState.Status, connectionState.AccountLabel);
-
+        var checkpoint = PerformanceCheckpoint.StartNew("MainPageModel.RefreshConnectionStateAsync");
+        var outcome = "Succeeded";
         try
         {
-            await _uiDispatcher.DispatchAsync(() => ApplyConnectionState(connectionState));
+            _logger.LogInformation("Refreshing cached OneDrive connection state.");
+            var connectionState = await _oneDriveAuthenticationService.GetCurrentConnectionStateAsync();
+            _logger.LogInformation("Fetched cached OneDrive state {StateStatus} for account {AccountLabel}.", connectionState.Status, connectionState.AccountLabel);
+
+            try
+            {
+                await _uiDispatcher.DispatchAsync(() => ApplyConnectionState(connectionState));
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "Applying cached connection state on the UI thread failed.");
+                throw;
+            }
+
+            if (connectionState.Status == OneDriveConnectionStatus.Connected)
+            {
+                await TryRefreshDisplaySummaryAsync(
+                    refreshWallpaperPreview: true,
+                    reason: "connected-state-refresh");
+
+                QueuePostConnectionPermissionRequest();
+            }
+
+            _logger.LogInformation("Refreshing OneDrive album discovery after loading the cached connection state.");
+            await RefreshAlbumDiscoveryAsync(connectionState);
+            outcome = connectionState.Status.ToString();
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "Applying cached connection state on the UI thread failed.");
+            _logger.LogError(exception, "Refreshing cached OneDrive connection state failed.");
+            outcome = "Failed";
             throw;
         }
-
-        if (connectionState.Status == OneDriveConnectionStatus.Connected)
+        finally
         {
-            await TryRefreshDisplaySummaryAsync(
-                refreshWallpaperPreview: true,
-                reason: "connected-state-refresh");
-
-            QueuePostConnectionPermissionRequest();
+            checkpoint.LogCompleted(_logger, outcome);
         }
-
-        _logger.LogInformation("Refreshing OneDrive album discovery after loading the cached connection state.");
-        await RefreshAlbumDiscoveryAsync(connectionState);
     }
 
     private void ApplyScenario(LockPaperScenario scenario)
@@ -671,6 +703,9 @@ public partial class MainPageModel : ObservableObject
 
     private async Task<OneDriveAlbumDiscoveryResult?> GetAlbumDiscoveryResultIfNeededAsync(OneDriveConnectionState connectionState)
     {
+        var checkpoint = PerformanceCheckpoint.StartNew("MainPageModel.GetAlbumDiscoveryResultIfNeededAsync");
+        var outcome = "Skipped";
+
         if (connectionState.Status != OneDriveConnectionStatus.Connected)
         {
             return null;
@@ -681,12 +716,18 @@ public partial class MainPageModel : ObservableObject
         {
             var result = await _oneDriveAlbumDiscoveryService.GetMatchingAlbumsAsync().ConfigureAwait(false);
             LogAlbumDiscoveryResult("Album discovery completed", result);
+            outcome = result.Status.ToString();
             return result;
         }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Loading matching OneDrive albums failed unexpectedly.");
+            outcome = $"Failed:{exception.GetType().Name}";
             return OneDriveAlbumDiscoveryResult.Failed(exception.GetType().Name, "LockPaper couldn't confirm your OneDrive albums yet.");
+        }
+        finally
+        {
+            checkpoint.LogCompleted(_logger, outcome);
         }
     }
 
@@ -711,41 +752,57 @@ public partial class MainPageModel : ObservableObject
 
     private async Task RefreshWallpaperAsync()
     {
-        _logger.LogInformation("Primary action invoked. Starting manual wallpaper refresh.");
-
+        var checkpoint = PerformanceCheckpoint.StartNew("MainPageModel.RefreshWallpaperAsync");
+        var outcome = "Failed";
         try
         {
-            await _uiDispatcher.DispatchAsync(BeginWallpaperRefresh);
+            _logger.LogInformation("Primary action invoked. Starting manual wallpaper refresh.");
+
+            try
+            {
+                await _uiDispatcher.DispatchAsync(BeginWallpaperRefresh);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "Preparing the wallpaper refresh state on the UI thread failed.");
+                throw;
+            }
+
+            var result = await _wallpaperRefreshService.RefreshAsync().ConfigureAwait(false);
+            _logger.LogInformation(
+                "Wallpaper refresh completed with status {Status}. Matching album count: {MatchingAlbumCount}. Album: {AlbumName}. Photo: {PhotoName}.",
+                result.Status,
+                result.MatchingAlbumCount,
+                result.AlbumName,
+                result.PhotoName);
+
+            try
+            {
+                await _uiDispatcher.DispatchAsync(() => HandleWallpaperRefreshResult(result));
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "Applying wallpaper refresh results on the UI thread failed.");
+                throw;
+            }
+
+            if (result.Status == WallpaperRefreshStatus.Succeeded)
+            {
+                await TryRefreshDisplaySummaryAsync(
+                    refreshWallpaperPreview: false,
+                    reason: "post-wallpaper-refresh");
+            }
+
+            outcome = result.Status.ToString();
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            _logger.LogError(exception, "Preparing the wallpaper refresh state on the UI thread failed.");
+            outcome = "Failed";
             throw;
         }
-
-        var result = await _wallpaperRefreshService.RefreshAsync().ConfigureAwait(false);
-        _logger.LogInformation(
-            "Wallpaper refresh completed with status {Status}. Matching album count: {MatchingAlbumCount}. Album: {AlbumName}. Photo: {PhotoName}.",
-            result.Status,
-            result.MatchingAlbumCount,
-            result.AlbumName,
-            result.PhotoName);
-
-        try
+        finally
         {
-            await _uiDispatcher.DispatchAsync(() => HandleWallpaperRefreshResult(result));
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Applying wallpaper refresh results on the UI thread failed.");
-            throw;
-        }
-
-        if (result.Status == WallpaperRefreshStatus.Succeeded)
-        {
-            await TryRefreshDisplaySummaryAsync(
-                refreshWallpaperPreview: false,
-                reason: "post-wallpaper-refresh");
+            checkpoint.LogCompleted(_logger, outcome);
         }
     }
 
@@ -804,50 +861,68 @@ public partial class MainPageModel : ObservableObject
 
     private async Task RefreshDisplaySummaryAsync(bool refreshWallpaperPreview)
     {
-        IReadOnlyList<DeviceDisplayInfo> displays;
+        var checkpoint = PerformanceCheckpoint.StartNew("MainPageModel.RefreshDisplaySummaryAsync");
+        var outcome = refreshWallpaperPreview ? "PreviewRefresh" : "LayoutOnly";
+
         try
         {
-            displays = _deviceDisplayService.GetDisplays();
-            _logger.LogInformation("Retrieved {DisplayCount} display(s) from the device display service.", displays.Count);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Reading device display details failed.");
-            throw;
-        }
-
-        if (refreshWallpaperPreview)
-        {
+            IReadOnlyList<DeviceDisplayInfo> displays;
             try
             {
-                _currentWallpaperPreviewFilePath =
-                    await _wallpaperRefreshService.GetCurrentWallpaperPreviewFilePathAsync().ConfigureAwait(false)
-                    ?? string.Empty;
-
-                _logger.LogInformation(
-                    "Resolved wallpaper preview path for the display summary. Has preview: {HasPreview}. Path: {WallpaperPreviewFilePath}.",
-                    !string.IsNullOrWhiteSpace(_currentWallpaperPreviewFilePath),
-                    _currentWallpaperPreviewFilePath);
+                displays = _deviceDisplayService.GetDisplays();
+                _logger.LogInformation("Retrieved {DisplayCount} display(s) from the device display service.", displays.Count);
             }
-            catch (Exception exception) when (
-                exception is IOException
-                or InvalidOperationException
-                or PlatformNotSupportedException
-                or UnauthorizedAccessException)
+            catch (Exception exception)
             {
-                _logger.LogWarning(exception, "Reading the current lock-screen wallpaper preview failed.");
-                _currentWallpaperPreviewFilePath = string.Empty;
+                _logger.LogError(exception, "Reading device display details failed.");
+                throw;
+            }
+
+            try
+            {
+                if (refreshWallpaperPreview)
+                {
+                    try
+                    {
+                        _currentWallpaperPreviewFilePath =
+                            await _wallpaperRefreshService.GetCurrentWallpaperPreviewFilePathAsync().ConfigureAwait(false)
+                            ?? string.Empty;
+
+                        _logger.LogInformation(
+                            "Resolved wallpaper preview path for the display summary. Has preview: {HasPreview}. Path: {WallpaperPreviewFilePath}.",
+                            !string.IsNullOrWhiteSpace(_currentWallpaperPreviewFilePath),
+                            _currentWallpaperPreviewFilePath);
+                    }
+                    catch (Exception exception) when (
+                        exception is IOException
+                        or InvalidOperationException
+                        or PlatformNotSupportedException
+                        or UnauthorizedAccessException)
+                    {
+                        _logger.LogWarning(exception, "Reading the current lock-screen wallpaper preview failed.");
+                        _currentWallpaperPreviewFilePath = string.Empty;
+                    }
+                }
+
+                try
+                {
+                    await _uiDispatcher.DispatchAsync(() => ApplyDisplaySummary(displays, _currentWallpaperPreviewFilePath));
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogError(exception, "Applying the display summary on the UI thread failed.");
+                    throw;
+                }
+            }
+            catch (Exception)
+            {
+                outcome = "Failed";
+                throw;
             }
         }
-
-        try
+        finally
         {
-            await _uiDispatcher.DispatchAsync(() => ApplyDisplaySummary(displays, _currentWallpaperPreviewFilePath));
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Applying the display summary on the UI thread failed.");
-            throw;
+            checkpoint.LogCompleted(_logger, outcome);
         }
     }
 

@@ -1,6 +1,7 @@
 using Microsoft.ApplicationInsights;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using LockPaper.Ui.Misc.Telemetry;
 
 namespace LockPaper.Ui
 {
@@ -28,15 +29,30 @@ namespace LockPaper.Ui
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            _logger.LogInformation("Creating main application window.");
-            var window = new Window(new AppShell());
+            var checkpoint = PerformanceCheckpoint.StartNew("App.CreateWindow");
+            var outcome = "Succeeded";
+
+            try
+            {
+                _logger.LogInformation("Creating main application window.");
+                var window = new Window(new AppShell());
 
 #if WINDOWS
-            window.Width = PortraitWindowWidth;
-            window.Height = PortraitWindowHeight;
+                window.Width = PortraitWindowWidth;
+                window.Height = PortraitWindowHeight;
 #endif
 
-            return window;
+                return window;
+            }
+            catch (Exception)
+            {
+                outcome = "Failed";
+                throw;
+            }
+            finally
+            {
+                checkpoint.LogCompleted(_logger, outcome);
+            }
         }
 
         private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)

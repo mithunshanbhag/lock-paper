@@ -1,3 +1,4 @@
+using LockPaper.Ui.Misc.Telemetry;
 using LockPaper.Ui.Misc.Utilities;
 using LockPaper.Ui.Models;
 using LockPaper.Ui.Services.Interfaces;
@@ -22,6 +23,8 @@ public sealed class WallpaperRefreshService(
 
     public async Task<WallpaperRefreshResult> RefreshAsync(CancellationToken cancellationToken = default)
     {
+        var checkpoint = PerformanceCheckpoint.StartNew("WallpaperRefresh.RefreshAsync");
+        var outcome = "Failed";
         var attemptedAtLocal = DateTimeOffset.Now;
         var matchingAlbumCount = 0;
         logger.LogInformation("Starting wallpaper refresh attempt at {AttemptedAtLocal}.", attemptedAtLocal);
@@ -33,7 +36,9 @@ public sealed class WallpaperRefreshService(
             if (targetDisplay is null)
             {
                 logger.LogWarning("Wallpaper refresh could not choose a target display from {DisplayCount} display(s).", displays.Count);
-                return WallpaperRefreshResult.Failed(attemptedAtLocal, 0, "LockPaper couldn't read the current display details.");
+                var failedResult = WallpaperRefreshResult.Failed(attemptedAtLocal, 0, "LockPaper couldn't read the current display details.");
+                outcome = failedResult.Status.ToString();
+                return failedResult;
             }
 
             var wallpaperTargetDisplay = GetWallpaperTargetDisplay(targetDisplay);
@@ -56,7 +61,9 @@ public sealed class WallpaperRefreshService(
             }
             catch (InvalidOperationException exception)
             {
-                return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                var reauthenticationResult = CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                outcome = reauthenticationResult.Status.ToString();
+                return reauthenticationResult;
             }
 
             matchingAlbumCount = matchingAlbums.Count;
@@ -64,7 +71,9 @@ public sealed class WallpaperRefreshService(
             if (matchingAlbums.Count == 0)
             {
                 logger.LogInformation("Wallpaper refresh stopped because no matching albums were available.");
-                return WallpaperRefreshResult.NoMatchingAlbums(attemptedAtLocal);
+                var noMatchingAlbumsResult = WallpaperRefreshResult.NoMatchingAlbums(attemptedAtLocal);
+                outcome = noMatchingAlbumsResult.Status.ToString();
+                return noMatchingAlbumsResult;
             }
 
             foreach (var album in ShuffleAlbums(matchingAlbums))
@@ -83,7 +92,9 @@ public sealed class WallpaperRefreshService(
                 }
                 catch (InvalidOperationException exception)
                 {
-                    return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                    var reauthenticationResult = CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                    outcome = reauthenticationResult.Status.ToString();
+                    return reauthenticationResult;
                 }
 
                 logger.LogInformation(
@@ -147,7 +158,9 @@ public sealed class WallpaperRefreshService(
                     }
                     catch (InvalidOperationException exception)
                     {
-                        return CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                        var reauthenticationResult = CreateReauthenticationRequiredResult(attemptedAtLocal, exception);
+                        outcome = reauthenticationResult.Status.ToString();
+                        return reauthenticationResult;
                     }
 
 #if ANDROID
@@ -160,9 +173,9 @@ public sealed class WallpaperRefreshService(
                         logger.LogWarning(
                             "LockPaper could not inspect the EXIF-aware dimensions for photo '{PhotoName}'. Proceeding with wallpaper apply.",
                             selectedPhoto.Name);
-                     }
-                     else if (!orientationMatchesTarget.Value && remainingPhotos.Count > 1)
-                     {
+                    }
+                    else if (!orientationMatchesTarget.Value && remainingPhotos.Count > 1)
+                    {
                         skippedAndroidExifMismatchPhotoCount++;
                         logger.LogInformation(
                             "Skipping photo '{PhotoName}' for Android lock-screen wallpaper because its EXIF-aware dimensions do not match target display {DisplayLabel}. Remaining candidates in album: {RemainingCandidateCount}.",
@@ -195,12 +208,14 @@ public sealed class WallpaperRefreshService(
 
                     await PersistWallpaperPhotoKeyAsync(selectedPhotoKey, cancellationToken).ConfigureAwait(false);
 
-                    return WallpaperRefreshResult.Succeeded(
+                    var succeededResult = WallpaperRefreshResult.Succeeded(
                         attemptedAtLocal,
                         matchingAlbumCount,
                         album.Name,
                         selectedPhoto.Name,
                         localFilePath);
+                    outcome = succeededResult.Status.ToString();
+                    return succeededResult;
                 }
 
                 logger.LogInformation(
@@ -217,7 +232,9 @@ public sealed class WallpaperRefreshService(
             logger.LogInformation(
                 "Wallpaper refresh finished without an eligible photo after evaluating {MatchingAlbumCount} matching album(s).",
                 matchingAlbumCount);
-            return WallpaperRefreshResult.NoEligiblePhotos(attemptedAtLocal, matchingAlbumCount);
+            var noEligiblePhotosResult = WallpaperRefreshResult.NoEligiblePhotos(attemptedAtLocal, matchingAlbumCount);
+            outcome = noEligiblePhotosResult.Status.ToString();
+            return noEligiblePhotosResult;
         }
         catch (Exception exception) when (
             exception is HttpRequestException
@@ -228,7 +245,13 @@ public sealed class WallpaperRefreshService(
             or InvalidOperationException)
         {
             logger.LogWarning(exception, "Wallpaper refresh failed after evaluating {MatchingAlbumCount} matching album(s).", matchingAlbumCount);
-            return WallpaperRefreshResult.Failed(attemptedAtLocal, matchingAlbumCount, exception.Message);
+            var failedResult = WallpaperRefreshResult.Failed(attemptedAtLocal, matchingAlbumCount, exception.Message);
+            outcome = failedResult.Status.ToString();
+            return failedResult;
+        }
+        finally
+        {
+            checkpoint.LogCompleted(logger, outcome);
         }
     }
 

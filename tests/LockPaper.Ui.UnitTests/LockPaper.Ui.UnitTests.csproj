@@ -21,6 +21,7 @@
   <ItemGroup>
     <Compile Include="..\..\src\LockPaper.Ui\Constants\OneDriveAlbumDiscoveryConstants.cs" Link="Source\Constants\OneDriveAlbumDiscoveryConstants.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Constants\ConfigKeys.cs" Link="Source\Constants\ConfigKeys.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Misc\Telemetry\PerformanceCheckpoint.cs" Link="Source\Misc\Telemetry\PerformanceCheckpoint.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\AppSettingsConfigurationLoader.cs" Link="Source\Misc\Utilities\AppSettingsConfigurationLoader.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\DeviceDisplayInfoFactory.cs" Link="Source\Misc\Utilities\DeviceDisplayInfoFactory.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Misc\Utilities\WallpaperTargetDisplayNormalizer.cs" Link="Source\Misc\Utilities\WallpaperTargetDisplayNormalizer.cs" />
