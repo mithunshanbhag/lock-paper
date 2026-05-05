@@ -5,8 +5,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LockPaper.Ui.UnitTests.Services.Implementations;
 
-public sealed class WallpaperRefreshServiceTests
+public sealed class WallpaperRefreshServiceTests : IDisposable
 {
+    public WallpaperRefreshServiceTests()
+    {
+        DeletePersistedWallpaperPhotoKeyFile();
+    }
+
+    public void Dispose()
+    {
+        DeletePersistedWallpaperPhotoKeyFile();
+    }
+
     #region PositiveCases
 
     [Fact]
@@ -48,6 +58,46 @@ public sealed class WallpaperRefreshServiceTests
         var previewFilePath = await service.GetCurrentWallpaperPreviewFilePathAsync();
 
         Assert.Equal(@"C:\temp\current-lockscreen.jpg", previewFilePath);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_WhenCurrentWallpaperPhotoExists_ShouldSelectDifferentPhoto()
+    {
+        WritePersistedWallpaperPhotoKey("album-1:photo-1");
+
+        var lockScreenWallpaperService = new FakeLockScreenWallpaperService();
+        var service = new WallpaperRefreshService(
+            new FakeDeviceDisplayService(),
+            lockScreenWallpaperService,
+            new FakeOneDriveWallpaperSourceService
+            {
+                AlbumPhotos =
+                [
+                    new OneDriveWallpaperPhoto
+                    {
+                        Id = "photo-1",
+                        Name = "sunrise.jpg",
+                        PixelWidth = 1920,
+                        PixelHeight = 1080,
+                    },
+                    new OneDriveWallpaperPhoto
+                    {
+                        Id = "photo-2",
+                        Name = "forest.jpg",
+                        PixelWidth = 1920,
+                        PixelHeight = 1080,
+                    },
+                ],
+            },
+            new FakeRandomizer(),
+            new FakeWallpaperSelectionService(),
+            NullLogger<WallpaperRefreshService>.Instance);
+
+        var result = await service.RefreshAsync();
+
+        Assert.Equal(WallpaperRefreshStatus.Succeeded, result.Status);
+        Assert.Equal("forest.jpg", result.PhotoName);
+        Assert.Equal(lockScreenWallpaperService.AppliedLocalFilePath, result.AppliedWallpaperFilePath);
     }
 
     #endregion
@@ -94,6 +144,26 @@ public sealed class WallpaperRefreshServiceTests
 
         Assert.Equal(WallpaperRefreshStatus.NoEligiblePhotos, result.Status);
         Assert.Equal(1, result.MatchingAlbumCount);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_WhenOnlyCurrentWallpaperPhotoIsAvailable_ShouldReturnNoEligiblePhotos()
+    {
+        WritePersistedWallpaperPhotoKey("album-1:photo-1");
+
+        var lockScreenWallpaperService = new FakeLockScreenWallpaperService();
+        var service = new WallpaperRefreshService(
+            new FakeDeviceDisplayService(),
+            lockScreenWallpaperService,
+            new FakeOneDriveWallpaperSourceService(),
+            new FakeRandomizer(),
+            new FakeWallpaperSelectionService(),
+            NullLogger<WallpaperRefreshService>.Instance);
+
+        var result = await service.RefreshAsync();
+
+        Assert.Equal(WallpaperRefreshStatus.NoEligiblePhotos, result.Status);
+        Assert.True(string.IsNullOrWhiteSpace(lockScreenWallpaperService.AppliedLocalFilePath));
     }
 
     [Fact]
@@ -212,4 +282,28 @@ public sealed class WallpaperRefreshServiceTests
             IReadOnlyList<OneDriveWallpaperPhoto> photos,
             DeviceDisplayInfo display) => photos.FirstOrDefault();
     }
+
+    private static void WritePersistedWallpaperPhotoKey(string photoKey)
+    {
+        var persistedWallpaperPhotoKeyFilePath = GetPersistedWallpaperPhotoKeyFilePath();
+        var wallpaperStateDirectory = Path.GetDirectoryName(persistedWallpaperPhotoKeyFilePath);
+        Assert.False(string.IsNullOrWhiteSpace(wallpaperStateDirectory));
+        Directory.CreateDirectory(wallpaperStateDirectory!);
+        File.WriteAllText(persistedWallpaperPhotoKeyFilePath, photoKey);
+    }
+
+    private static void DeletePersistedWallpaperPhotoKeyFile()
+    {
+        var persistedWallpaperPhotoKeyFilePath = GetPersistedWallpaperPhotoKeyFilePath();
+        if (File.Exists(persistedWallpaperPhotoKeyFilePath))
+        {
+            File.Delete(persistedWallpaperPhotoKeyFilePath);
+        }
+    }
+
+    private static string GetPersistedWallpaperPhotoKeyFilePath() =>
+        WallpaperRefreshService.GetPersistedWallpaperPhotoKeyFilePath();
+
+    private static string GetWallpaperStateDirectory() =>
+        WallpaperRefreshService.GetWallpaperStateDirectory();
 }
