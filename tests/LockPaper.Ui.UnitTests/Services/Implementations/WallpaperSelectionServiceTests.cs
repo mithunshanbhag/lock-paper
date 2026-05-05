@@ -85,6 +85,49 @@ public class WallpaperSelectionServiceTests
         Assert.Equal("portrait-2.jpg", selectedPhoto!.Name);
     }
 
+    [Fact]
+    public void GetSelectionPool_WhenGraphOrientationPreferenceIsDisabled_ShouldKeepAllCandidates()
+    {
+        var display = new DeviceDisplayInfo
+        {
+            PixelWidth = 1080,
+            PixelHeight = 1920,
+            ApproximateDiagonalInches = 6.7d,
+            IsPrimary = true,
+        };
+        OneDriveWallpaperPhoto[] photos =
+        [
+            new OneDriveWallpaperPhoto
+            {
+                Id = "wide",
+                Name = "wide.jpg",
+                PixelWidth = 3840,
+                PixelHeight = 2160,
+            },
+            new OneDriveWallpaperPhoto
+            {
+                Id = "close-portrait",
+                Name = "close-portrait.jpg",
+                PixelWidth = 1440,
+                PixelHeight = 2560,
+            },
+            new OneDriveWallpaperPhoto
+            {
+                Id = "far-portrait",
+                Name = "far-portrait.jpg",
+                PixelWidth = 3000,
+                PixelHeight = 5000,
+            },
+        ];
+
+        var selectionPool = WallpaperSelectionService.GetSelectionPool(
+            photos,
+            display,
+            preferMatchingOrientation: false);
+
+        Assert.Equal(photos, selectionPool);
+    }
+
     #endregion
 
     #region BoundaryAndEdgeCases

@@ -15,14 +15,25 @@ public sealed class WallpaperSelectionService(IRandomizer randomizer) : IWallpap
             return null;
         }
 
-        var selectionPool = GetSelectionPool(photos, display);
+        // Android re-validates orientation from downloaded EXIF data, so Graph width/height metadata
+        // should not pre-filter the random pool there.
+        var selectionPool = GetSelectionPool(
+            photos,
+            display,
+            preferMatchingOrientation: !OperatingSystem.IsAndroid());
         return selectionPool[randomizer.Next(selectionPool.Count)];
     }
 
-    private static IReadOnlyList<OneDriveWallpaperPhoto> GetSelectionPool(
+    internal static IReadOnlyList<OneDriveWallpaperPhoto> GetSelectionPool(
         IReadOnlyList<OneDriveWallpaperPhoto> photos,
-        DeviceDisplayInfo display)
+        DeviceDisplayInfo display,
+        bool preferMatchingOrientation)
     {
+        if (!preferMatchingOrientation)
+        {
+            return photos;
+        }
+
         var displayOrientation = GetOrientation(display.PixelWidth, display.PixelHeight);
         if (displayOrientation == WallpaperOrientation.Square)
         {
