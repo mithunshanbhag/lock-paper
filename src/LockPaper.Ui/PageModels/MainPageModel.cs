@@ -16,9 +16,11 @@ public partial class MainPageModel : ObservableObject
     private readonly IDeviceDisplayService _deviceDisplayService;
     private readonly ILogger<MainPageModel> _logger;
     private readonly IOneDriveAuthenticationService _oneDriveAuthenticationService;
+    private readonly IPlatformPermissionService _platformPermissionService;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly IWallpaperRefreshService _wallpaperRefreshService;
     private bool _hasInitialized;
+    private bool _hasRequestedPostConnectionPermissions;
     private LockPaperScenario _currentScenario;
     private string _currentWallpaperPreviewFilePath = string.Empty;
     private WallpaperRefreshResult? _lastWallpaperRefreshResult;
@@ -72,6 +74,8 @@ public partial class MainPageModel : ObservableObject
 
     public ObservableCollection<DisplayPreview> DisplayPreviews { get; } = [];
 
+    public event EventHandler? PostConnectionPermissionRequestNeeded;
+
     public MainPageModel(
         IOneDriveAuthenticationService oneDriveAuthenticationService,
         IOneDriveAlbumDiscoveryService oneDriveAlbumDiscoveryService,
@@ -79,11 +83,31 @@ public partial class MainPageModel : ObservableObject
         IWallpaperRefreshService wallpaperRefreshService,
         IUiDispatcher uiDispatcher,
         ILogger<MainPageModel> logger)
+        : this(
+            oneDriveAuthenticationService,
+            oneDriveAlbumDiscoveryService,
+            deviceDisplayService,
+            wallpaperRefreshService,
+            NoOpPlatformPermissionService.Instance,
+            uiDispatcher,
+            logger)
+    {
+    }
+
+    public MainPageModel(
+        IOneDriveAuthenticationService oneDriveAuthenticationService,
+        IOneDriveAlbumDiscoveryService oneDriveAlbumDiscoveryService,
+        IDeviceDisplayService deviceDisplayService,
+        IWallpaperRefreshService wallpaperRefreshService,
+        IPlatformPermissionService platformPermissionService,
+        IUiDispatcher uiDispatcher,
+        ILogger<MainPageModel> logger)
     {
         _oneDriveAuthenticationService = oneDriveAuthenticationService;
         _oneDriveAlbumDiscoveryService = oneDriveAlbumDiscoveryService;
         _deviceDisplayService = deviceDisplayService;
         _wallpaperRefreshService = wallpaperRefreshService;
+        _platformPermissionService = platformPermissionService;
         _uiDispatcher = uiDispatcher;
         _logger = logger;
         ApplyScenario(LockPaperScenario.SignedOut);
@@ -115,6 +139,52 @@ public partial class MainPageModel : ObservableObject
         catch (Exception exception)
         {
             _logger.LogError(exception, "Applying sign-out result on the UI thread failed.");
+            throw;
+        }
+    }
+
+    public async Task RequestPostConnectionPermissionsAsync()
+    {
+        if (_currentScenario != LockPaperScenario.Connected)
+        {
+            _logger.LogInformation(
+                "Skipping post-connection permission request because the current scenario is {Scenario}.",
+                _currentScenario);
+            return;
+        }
+
+        _logger.LogInformation("Requesting post-connection platform permissions.");
+        var result = await _platformPermissionService.RequestPostConnectionPermissionsAsync().ConfigureAwait(false);
+        _logger.LogInformation(
+            "Post-connection permission request completed with status {Status}. Refresh display summary: {ShouldRefreshDisplaySummary}.",
+            result.Status,
+            result.ShouldRefreshDisplaySummary);
+
+        if (result.ShouldRefreshDisplaySummary)
+        {
+            await TryRefreshDisplaySummaryAsync(
+                refreshWallpaperPreview: true,
+                reason: "post-connection-permission-request").ConfigureAwait(false);
+        }
+
+        if (string.IsNullOrWhiteSpace(result.FeedbackMessage))
+        {
+            return;
+        }
+
+        try
+        {
+            await _uiDispatcher.DispatchAsync(() =>
+            {
+                if (_currentScenario == LockPaperScenario.Connected && !ShowFeedback)
+                {
+                    SetFeedback(result.FeedbackMessage);
+                }
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Applying post-connection permission feedback on the UI thread failed.");
             throw;
         }
     }
@@ -161,11 +231,13 @@ public partial class MainPageModel : ObservableObject
             throw;
         }
 
-        if (result.State.Status != OneDriveConnectionStatus.SignedOut)
+        if (result.State.Status == OneDriveConnectionStatus.Connected)
         {
             await TryRefreshDisplaySummaryAsync(
                 refreshWallpaperPreview: true,
                 reason: "post-sign-in");
+
+            QueuePostConnectionPermissionRequest();
         }
 
         _logger.LogInformation("Refreshing OneDrive album discovery after sign-in.");
@@ -188,11 +260,13 @@ public partial class MainPageModel : ObservableObject
             throw;
         }
 
-        if (connectionState.Status != OneDriveConnectionStatus.SignedOut)
+        if (connectionState.Status == OneDriveConnectionStatus.Connected)
         {
             await TryRefreshDisplaySummaryAsync(
                 refreshWallpaperPreview: true,
                 reason: "connected-state-refresh");
+
+            QueuePostConnectionPermissionRequest();
         }
 
         _logger.LogInformation("Refreshing OneDrive album discovery after loading the cached connection state.");
@@ -334,6 +408,7 @@ public partial class MainPageModel : ObservableObject
         DisplayPreviews.Clear();
         _currentWallpaperPreviewFilePath = string.Empty;
         _lastWallpaperRefreshResult = null;
+        _hasRequestedPostConnectionPermissions = false;
     }
 
     private void ClearFeedback()
@@ -704,6 +779,19 @@ public partial class MainPageModel : ObservableObject
         }
     }
 
+    private void QueuePostConnectionPermissionRequest()
+    {
+        if (_hasRequestedPostConnectionPermissions)
+        {
+            _logger.LogInformation("Skipping duplicate post-connection permission request notification.");
+            return;
+        }
+
+        _hasRequestedPostConnectionPermissions = true;
+        _logger.LogInformation("Queued a post-connection permission request notification.");
+        PostConnectionPermissionRequestNeeded?.Invoke(this, EventArgs.Empty);
+    }
+
     private static string BuildNoMatchingAlbumsMessage() =>
         $"No matching OneDrive albums were found. Create or rename an album to {FormatAlbumNamesForUi()}";
 
@@ -861,4 +949,13 @@ public partial class MainPageModel : ObservableObject
         string.IsNullOrWhiteSpace(accountLabel)
             ? DefaultAccountLabel
             : accountLabel;
+
+    private sealed class NoOpPlatformPermissionService : IPlatformPermissionService
+    {
+        public static NoOpPlatformPermissionService Instance { get; } = new();
+
+        public Task<PlatformPermissionRequestResult> RequestPostConnectionPermissionsAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(PlatformPermissionRequestResult.NotRequired());
+    }
 }

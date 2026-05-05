@@ -5,6 +5,8 @@ namespace LockPaper.Ui.Pages;
 
 public partial class MainPage : ContentPage
 {
+    private const int PostConnectionPermissionRequestDelayMilliseconds = 200;
+
     private readonly ILogger<MainPage> _logger;
 
     public MainPage(MainPageModel model, ILogger<MainPage> logger)
@@ -12,6 +14,7 @@ public partial class MainPage : ContentPage
         InitializeComponent();
         BindingContext = model;
         _logger = logger;
+        model.PostConnectionPermissionRequestNeeded += OnPostConnectionPermissionRequestNeeded;
     }
 
     protected override async void OnAppearing()
@@ -67,6 +70,44 @@ public partial class MainPage : ContentPage
                 _logger.LogCritical(exception, "Logging out from the main page failed.");
                 throw;
             }
+        }
+    }
+
+    private async void OnPostConnectionPermissionRequestNeeded(object? sender, EventArgs e)
+    {
+        if (sender is not MainPageModel model)
+        {
+            return;
+        }
+
+        var completionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        try
+        {
+            _logger.LogInformation(
+                "Waiting for the connected layout to render before requesting platform permissions.");
+
+            Dispatcher.DispatchDelayed(
+                TimeSpan.FromMilliseconds(PostConnectionPermissionRequestDelayMilliseconds),
+                async () =>
+                {
+                    try
+                    {
+                        await model.RequestPostConnectionPermissionsAsync();
+                        completionSource.SetResult();
+                    }
+                    catch (Exception exception)
+                    {
+                        completionSource.SetException(exception);
+                    }
+                });
+
+            await completionSource.Task;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogCritical(exception, "Requesting platform permissions from the main page failed.");
+            throw;
         }
     }
 }

@@ -79,6 +79,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IOneDriveAlbumDiscoveryService, OneDriveAlbumDiscoveryService>();
         builder.Services.AddSingleton<IWallpaperSelectionService, WallpaperSelectionService>();
         builder.Services.AddSingleton<ILockScreenWallpaperService, LockScreenWallpaperService>();
+        builder.Services.AddSingleton<IPlatformPermissionService, PlatformPermissionService>();
         builder.Services.AddSingleton<IWallpaperRefreshService, WallpaperRefreshService>();
         builder.Services.AddSingleton<MainPageModel>();
         builder.Services.AddSingleton<MainPage>();

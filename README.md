@@ -91,6 +91,7 @@ After launching the app, you can:
 
 Notes:
 
+- Android requests photo access after sign-in so LockPaper can read the current lock-screen preview for the display summary.
 - Windows uses the supported packaged personalization API for lock-screen updates.
 - Windows lock-screen updates work best with JPG, JPEG, PNG, or BMP photos; HEIC/HEIF images should be converted first.
 - Windows applies one shared lock-screen image across all monitors because the platform does not support different lock-screen images per monitor.

@@ -30,6 +30,8 @@
     <Compile Include="..\..\src\LockPaper.Ui\Models\LockPaperScenario.cs" Link="Source\Models\LockPaperScenario.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveWallpaperAlbum.cs" Link="Source\Models\OneDriveWallpaperAlbum.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveWallpaperPhoto.cs" Link="Source\Models\OneDriveWallpaperPhoto.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\PlatformPermissionRequestResult.cs" Link="Source\Models\PlatformPermissionRequestResult.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Models\PlatformPermissionRequestStatus.cs" Link="Source\Models\PlatformPermissionRequestStatus.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveAlbumDiscoveryResult.cs" Link="Source\Models\OneDriveAlbumDiscoveryResult.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveAlbumDiscoveryStatus.cs" Link="Source\Models\OneDriveAlbumDiscoveryStatus.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Models\OneDriveConnectionOperationResult.cs" Link="Source\Models\OneDriveConnectionOperationResult.cs" />
@@ -48,6 +50,7 @@
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\ILockScreenWallpaperService.cs" Link="Source\Services\Interfaces\ILockScreenWallpaperService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveAuthenticationService.cs" Link="Source\Services\Interfaces\IOneDriveAuthenticationService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IOneDriveWallpaperSourceService.cs" Link="Source\Services\Interfaces\IOneDriveWallpaperSourceService.cs" />
+    <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IPlatformPermissionService.cs" Link="Source\Services\Interfaces\IPlatformPermissionService.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IRandomizer.cs" Link="Source\Services\Interfaces\IRandomizer.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IUiDispatcher.cs" Link="Source\Services\Interfaces\IUiDispatcher.cs" />
     <Compile Include="..\..\src\LockPaper.Ui\Services\Interfaces\IWallpaperRefreshService.cs" Link="Source\Services\Interfaces\IWallpaperRefreshService.cs" />

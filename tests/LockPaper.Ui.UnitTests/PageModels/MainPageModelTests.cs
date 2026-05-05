@@ -74,6 +74,31 @@ public class MainPageModelTests
     }
 
     [Fact]
+    public async Task InitializeAsync_WhenCachedConnectionExists_ShouldQueuePostConnectionPermissionRequest()
+    {
+        var permissionService = new FakePlatformPermissionService();
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService
+            {
+                CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
+            },
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
+            permissionService,
+            new FakeUiDispatcher(),
+            NullLogger<MainPageModel>.Instance);
+
+        var notificationCount = 0;
+        model.PostConnectionPermissionRequestNeeded += (_, _) => notificationCount++;
+
+        await model.InitializeAsync();
+
+        Assert.Equal(1, notificationCount);
+        Assert.Equal(0, permissionService.RequestCallCount);
+    }
+
+    [Fact]
     public async Task PrimaryActionCommand_WhenSignInSucceeds_ShouldShowConnectedState()
     {
         var dispatcher = new FakeUiDispatcher();
@@ -241,6 +266,31 @@ public class MainPageModelTests
         Assert.Equal(4, dispatcher.DispatchCount);
     }
 
+    [Fact]
+    public async Task RequestPostConnectionPermissionsAsync_WhenPermissionIsDenied_ShouldShowGuidance()
+    {
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService
+            {
+                CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
+            },
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService(),
+            new FakePlatformPermissionService
+            {
+                RequestResult = PlatformPermissionRequestResult.Denied("Allow photo access for the preview."),
+            },
+            new FakeUiDispatcher(),
+            NullLogger<MainPageModel>.Instance);
+
+        await model.InitializeAsync();
+        await model.RequestPostConnectionPermissionsAsync();
+
+        Assert.True(model.ShowFeedback);
+        Assert.Equal("Allow photo access for the preview.", model.FeedbackText);
+    }
+
     #endregion
 
     #region BoundaryAndEdgeCases
@@ -371,6 +421,41 @@ public class MainPageModelTests
             Assert.True(preview.ShowWallpaperThumbnail);
             Assert.Equal(@"C:\temp\existing-lockscreen.jpg", preview.WallpaperThumbnailPath);
         });
+    }
+
+    [Fact]
+    public async Task RequestPostConnectionPermissionsAsync_WhenPermissionGrantRefreshesPreview_ShouldUpdateDisplayThumbnails()
+    {
+        var wallpaperRefreshService = new FakeWallpaperRefreshService();
+        wallpaperRefreshService.CurrentWallpaperPreviewResponses.Enqueue(null);
+        wallpaperRefreshService.CurrentWallpaperPreviewResponses.Enqueue(@"C:\temp\granted-lockscreen.jpg");
+
+        var permissionService = new FakePlatformPermissionService
+        {
+            RequestResult = PlatformPermissionRequestResult.Granted(shouldRefreshDisplaySummary: true),
+        };
+
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService
+            {
+                CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
+            },
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService(),
+            wallpaperRefreshService,
+            permissionService,
+            new FakeUiDispatcher(),
+            NullLogger<MainPageModel>.Instance);
+
+        await model.InitializeAsync();
+        Assert.False(model.DisplayPreviews[0].ShowWallpaperThumbnail);
+
+        await model.RequestPostConnectionPermissionsAsync();
+
+        Assert.Equal(1, permissionService.RequestCallCount);
+        Assert.Equal(2, wallpaperRefreshService.GetCurrentWallpaperPreviewFilePathCallCount);
+        Assert.True(model.DisplayPreviews[0].ShowWallpaperThumbnail);
+        Assert.Equal(@"C:\temp\granted-lockscreen.jpg", model.DisplayPreviews[0].WallpaperThumbnailPath);
     }
 
     [Fact]
@@ -548,8 +633,12 @@ public class MainPageModelTests
     {
         public string? CurrentWallpaperPreviewFilePath { get; set; }
 
+        public Queue<string?> CurrentWallpaperPreviewResponses { get; } = [];
+
         public WallpaperRefreshResult RefreshResult { get; set; } =
             WallpaperRefreshResult.Succeeded(DateTimeOffset.Now, 1, "lockpaper", "sunrise.jpg");
+
+        public int GetCurrentWallpaperPreviewFilePathCallCount { get; private set; }
 
         public int RefreshCallCount { get; private set; }
 
@@ -559,8 +648,31 @@ public class MainPageModelTests
             return Task.FromResult(RefreshResult);
         }
 
-        public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(CurrentWallpaperPreviewFilePath);
+        public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default)
+        {
+            GetCurrentWallpaperPreviewFilePathCallCount++;
+
+            if (CurrentWallpaperPreviewResponses.Count > 0)
+            {
+                return Task.FromResult(CurrentWallpaperPreviewResponses.Dequeue());
+            }
+
+            return Task.FromResult(CurrentWallpaperPreviewFilePath);
+        }
+    }
+
+    private sealed class FakePlatformPermissionService : IPlatformPermissionService
+    {
+        public PlatformPermissionRequestResult RequestResult { get; set; } =
+            PlatformPermissionRequestResult.NotRequired();
+
+        public int RequestCallCount { get; private set; }
+
+        public Task<PlatformPermissionRequestResult> RequestPostConnectionPermissionsAsync(CancellationToken cancellationToken = default)
+        {
+            RequestCallCount++;
+            return Task.FromResult(RequestResult);
+        }
     }
 
     private sealed class FakeUiDispatcher : IUiDispatcher
