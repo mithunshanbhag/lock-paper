@@ -215,6 +215,12 @@ public sealed class OneDriveWallpaperSourceService(
 
             var id = GetOptionalStringProperty(itemElement, "id");
             var name = GetOptionalStringProperty(itemElement, "name");
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                skippedMissingMetadataImageCount++;
+                continue;
+            }
+
             if (!IsSupportedWallpaperFileName(name, restrictToWindowsCompatibleFormats))
             {
                 skippedUnsupportedImageCount++;
@@ -223,7 +229,7 @@ public sealed class OneDriveWallpaperSourceService(
 
             supportedImageItemCount++;
 
-            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name))
+            if (string.IsNullOrWhiteSpace(id))
             {
                 skippedMissingMetadataImageCount++;
                 continue;
