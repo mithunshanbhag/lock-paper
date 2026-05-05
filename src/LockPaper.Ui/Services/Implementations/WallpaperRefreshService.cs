@@ -91,18 +91,37 @@ public sealed class WallpaperRefreshService(
                     album.Name,
                     photos.Count);
 
+                var photoOrientationSummary = SummarizePhotosForDisplay(photos, wallpaperTargetDisplay);
+                logger.LogInformation(
+                    "Album '{AlbumName}' diagnostics for target display {DisplayLabel}: target orientation {TargetOrientation}; matching-orientation photos {MatchingOrientationPhotoCount}; fallback-only photos {FallbackOnlyPhotoCount}; square photos {SquarePhotoCount}.",
+                    album.Name,
+                    FormatDisplayLabel(wallpaperTargetDisplay),
+                    photoOrientationSummary.TargetOrientation,
+                    photoOrientationSummary.MatchingOrientationPhotoCount,
+                    photoOrientationSummary.FallbackOnlyPhotoCount,
+                    photoOrientationSummary.SquarePhotoCount);
+
                 var remainingPhotos = photos.ToList();
+                var consideredPhotoCount = 0;
+                var skippedCurrentWallpaperPhotoCount = 0;
+                var skippedAndroidExifMismatchPhotoCount = 0;
                 while (remainingPhotos.Count > 0)
                 {
                     var selectedPhoto = wallpaperSelectionService.SelectBestPhoto(remainingPhotos, wallpaperTargetDisplay);
                     if (selectedPhoto is null)
                     {
+                        logger.LogInformation(
+                            "Wallpaper refresh stopped evaluating album '{AlbumName}' because the selection service returned no photo from {RemainingCandidateCount} remaining candidate(s).",
+                            album.Name,
+                            remainingPhotos.Count);
                         break;
                     }
 
+                    consideredPhotoCount++;
                     var selectedPhotoKey = BuildWallpaperPhotoKey(album.Id, selectedPhoto.Id);
                     if (string.Equals(selectedPhotoKey, currentWallpaperPhotoKey, StringComparison.OrdinalIgnoreCase))
                     {
+                        skippedCurrentWallpaperPhotoCount++;
                         logger.LogInformation(
                             "Skipping photo '{PhotoName}' from album '{AlbumName}' because it is already applied to the lock screen.",
                             selectedPhoto.Name,
@@ -141,9 +160,10 @@ public sealed class WallpaperRefreshService(
                         logger.LogWarning(
                             "LockPaper could not inspect the EXIF-aware dimensions for photo '{PhotoName}'. Proceeding with wallpaper apply.",
                             selectedPhoto.Name);
-                    }
-                    else if (!orientationMatchesTarget.Value && remainingPhotos.Count > 1)
-                    {
+                     }
+                     else if (!orientationMatchesTarget.Value && remainingPhotos.Count > 1)
+                     {
+                        skippedAndroidExifMismatchPhotoCount++;
                         logger.LogInformation(
                             "Skipping photo '{PhotoName}' for Android lock-screen wallpaper because its EXIF-aware dimensions do not match target display {DisplayLabel}. Remaining candidates in album: {RemainingCandidateCount}.",
                             selectedPhoto.Name,
@@ -166,9 +186,12 @@ public sealed class WallpaperRefreshService(
                         .ConfigureAwait(false);
 
                     logger.LogInformation(
-                        "Applied wallpaper candidate '{PhotoName}' from album '{AlbumName}' to the lock screen.",
+                        "Applied wallpaper candidate '{PhotoName}' from album '{AlbumName}' to the lock screen after considering {ConsideredPhotoCount} candidate(s). Skipped already-applied photos: {SkippedCurrentWallpaperPhotoCount}. Skipped Android EXIF mismatches: {SkippedAndroidExifMismatchPhotoCount}.",
                         selectedPhoto.Name,
-                        album.Name);
+                        album.Name,
+                        consideredPhotoCount,
+                        skippedCurrentWallpaperPhotoCount,
+                        skippedAndroidExifMismatchPhotoCount);
 
                     await PersistWallpaperPhotoKeyAsync(selectedPhotoKey, cancellationToken).ConfigureAwait(false);
 
@@ -181,9 +204,14 @@ public sealed class WallpaperRefreshService(
                 }
 
                 logger.LogInformation(
-                    "Skipping album '{AlbumName}' because no eligible photo could be selected for target display {DisplayLabel}.",
+                    "Skipping album '{AlbumName}' because no eligible photo could be selected for target display {DisplayLabel}. Album diagnostics: started with {InitialCandidateCount} usable photo(s); considered {ConsideredPhotoCount}; skipped already-applied photos {SkippedCurrentWallpaperPhotoCount}; skipped Android EXIF mismatches {SkippedAndroidExifMismatchPhotoCount}; remaining candidates {RemainingCandidateCount}.",
                     album.Name,
-                    FormatDisplayLabel(wallpaperTargetDisplay));
+                    FormatDisplayLabel(wallpaperTargetDisplay),
+                    photos.Count,
+                    consideredPhotoCount,
+                    skippedCurrentWallpaperPhotoCount,
+                    skippedAndroidExifMismatchPhotoCount,
+                    remainingPhotos.Count);
             }
 
             logger.LogInformation(
@@ -243,6 +271,39 @@ public sealed class WallpaperRefreshService(
         $"{display.PixelWidth}x{display.PixelHeight}, primary={display.IsPrimary}";
 
     private static string BuildWallpaperPhotoKey(string albumId, string photoId) => $"{albumId}:{photoId}";
+
+    private static PhotoOrientationSummary SummarizePhotosForDisplay(
+        IReadOnlyList<OneDriveWallpaperPhoto> photos,
+        DeviceDisplayInfo display)
+    {
+        var targetOrientation = GetWallpaperOrientation(display.PixelWidth, display.PixelHeight);
+        var squarePhotoCount = photos.Count(photo => GetWallpaperOrientation(photo.PixelWidth, photo.PixelHeight) == WallpaperOrientation.Square);
+        if (targetOrientation == WallpaperOrientation.Square)
+        {
+            return new PhotoOrientationSummary(targetOrientation, photos.Count, 0, squarePhotoCount);
+        }
+
+        var matchingOrientationPhotoCount = photos.Count(
+            photo => GetWallpaperOrientation(photo.PixelWidth, photo.PixelHeight) == targetOrientation);
+
+        return new PhotoOrientationSummary(
+            targetOrientation,
+            matchingOrientationPhotoCount,
+            photos.Count - matchingOrientationPhotoCount,
+            squarePhotoCount);
+    }
+
+    private static WallpaperOrientation GetWallpaperOrientation(int width, int height)
+    {
+        if (width == height)
+        {
+            return WallpaperOrientation.Square;
+        }
+
+        return height > width
+            ? WallpaperOrientation.Portrait
+            : WallpaperOrientation.Landscape;
+    }
 
     private static async Task PersistWallpaperPhotoKeyAsync(string photoKey, CancellationToken cancellationToken)
     {
@@ -366,5 +427,18 @@ public sealed class WallpaperRefreshService(
         return string.IsNullOrWhiteSpace(fileName)
             ? "lockpaper-wallpaper"
             : new string(fileName.Select(character => invalidCharacters.Contains(character) ? '_' : character).ToArray());
+    }
+
+    private sealed record PhotoOrientationSummary(
+        WallpaperOrientation TargetOrientation,
+        int MatchingOrientationPhotoCount,
+        int FallbackOnlyPhotoCount,
+        int SquarePhotoCount);
+
+    private enum WallpaperOrientation
+    {
+        Portrait,
+        Landscape,
+        Square,
     }
 }

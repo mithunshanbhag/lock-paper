@@ -69,6 +69,7 @@ public sealed class OneDriveWallpaperSourceService(
         var nextRequestUri = $"me/drive/items/{Uri.EscapeDataString(albumId)}/children?$select=id,name,image&$top=200";
         var photos = new List<OneDriveWallpaperPhoto>();
         var pageNumber = 0;
+        var restrictToWindowsCompatibleFormats = OperatingSystem.IsWindows();
 
         while (!string.IsNullOrWhiteSpace(nextRequestUri))
         {
@@ -77,15 +78,21 @@ public sealed class OneDriveWallpaperSourceService(
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            var pagePhotos = GetPhotos(document.RootElement);
-            photos.AddRange(pagePhotos);
+            var pagePhotoResult = GetPhotoPageResult(document.RootElement, restrictToWindowsCompatibleFormats);
+            photos.AddRange(pagePhotoResult.Photos);
             nextRequestUri = GetNextPageRequestUri(document.RootElement);
 
             logger.LogInformation(
-                "Processed OneDrive photo page {PageNumber} for album {AlbumId}. Usable photos on page: {PagePhotoCount}. Has another page: {HasNextPage}.",
+                "Processed OneDrive photo page {PageNumber} for album {AlbumId}. Child items on page: {PageItemCount}. Image items on page: {PageImageItemCount}. Supported image items on page: {PageSupportedImageCount}. Usable photos on page: {PagePhotoCount}. Skipped unsupported image items on page: {SkippedUnsupportedImageCount}. Skipped image items with missing metadata on page: {SkippedMissingMetadataImageCount}. Skipped image items with invalid dimensions on page: {SkippedInvalidDimensionImageCount}. Has another page: {HasNextPage}.",
                 pageNumber,
                 albumId,
-                pagePhotos.Count,
+                pagePhotoResult.TotalItemCount,
+                pagePhotoResult.ImageItemCount,
+                pagePhotoResult.SupportedImageItemCount,
+                pagePhotoResult.Photos.Count,
+                pagePhotoResult.SkippedUnsupportedImageCount,
+                pagePhotoResult.SkippedMissingMetadataImageCount,
+                pagePhotoResult.SkippedInvalidDimensionImageCount,
                 !string.IsNullOrWhiteSpace(nextRequestUri));
         }
 
@@ -93,12 +100,14 @@ public sealed class OneDriveWallpaperSourceService(
             .GroupBy(photo => photo.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToArray();
+        var duplicatePhotoCount = photos.Count - uniquePhotos.Length;
 
         logger.LogInformation(
-            "Loaded {PhotoCount} usable OneDrive photo(s) for album {AlbumId} across {PageCount} page(s).",
+            "Loaded {PhotoCount} usable OneDrive photo(s) for album {AlbumId} across {PageCount} page(s). Duplicate photo ids removed: {DuplicatePhotoCount}.",
             uniquePhotos.Length,
             albumId,
-            pageNumber);
+            pageNumber,
+            duplicatePhotoCount);
 
         return uniquePhotos;
     }
@@ -176,32 +185,74 @@ public sealed class OneDriveWallpaperSourceService(
             .ToArray();
     }
 
-    private static IReadOnlyList<OneDriveWallpaperPhoto> GetPhotos(JsonElement rootElement)
+    private static PhotoPageResult GetPhotoPageResult(
+        JsonElement rootElement,
+        bool restrictToWindowsCompatibleFormats)
     {
         if (!TryGetItemsArray(rootElement, out var itemsElement))
         {
-            return [];
+            return PhotoPageResult.Empty;
         }
 
-        return itemsElement
-            .EnumerateArray()
-            .Where(IsUsablePhotoItem)
-            .Select(itemElement => new OneDriveWallpaperPhoto
-            {
-                Id = GetRequiredStringProperty(itemElement, "id"),
-                Name = GetRequiredStringProperty(itemElement, "name"),
-                PixelWidth = itemElement.GetProperty("image").GetProperty("width").GetInt32(),
-                PixelHeight = itemElement.GetProperty("image").GetProperty("height").GetInt32(),
-            })
-            .Where(photo => photo.PixelWidth > 0 && photo.PixelHeight > 0)
-            .ToArray();
-    }
+        var photos = new List<OneDriveWallpaperPhoto>();
+        var totalItemCount = 0;
+        var imageItemCount = 0;
+        var supportedImageItemCount = 0;
+        var skippedUnsupportedImageCount = 0;
+        var skippedMissingMetadataImageCount = 0;
+        var skippedInvalidDimensionImageCount = 0;
 
-    private static bool IsUsablePhotoItem(JsonElement itemElement) =>
-        IsImageItem(itemElement)
-        && IsSupportedWallpaperFileName(
-            GetOptionalStringProperty(itemElement, "name"),
-            restrictToWindowsCompatibleFormats: OperatingSystem.IsWindows());
+        foreach (var itemElement in itemsElement.EnumerateArray())
+        {
+            totalItemCount++;
+
+            if (!TryGetImageDimensions(itemElement, out var width, out var height))
+            {
+                continue;
+            }
+
+            imageItemCount++;
+
+            var id = GetOptionalStringProperty(itemElement, "id");
+            var name = GetOptionalStringProperty(itemElement, "name");
+            if (!IsSupportedWallpaperFileName(name, restrictToWindowsCompatibleFormats))
+            {
+                skippedUnsupportedImageCount++;
+                continue;
+            }
+
+            supportedImageItemCount++;
+
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name))
+            {
+                skippedMissingMetadataImageCount++;
+                continue;
+            }
+
+            if (width <= 0 || height <= 0)
+            {
+                skippedInvalidDimensionImageCount++;
+                continue;
+            }
+
+            photos.Add(new OneDriveWallpaperPhoto
+            {
+                Id = id,
+                Name = name,
+                PixelWidth = width,
+                PixelHeight = height,
+            });
+        }
+
+        return new PhotoPageResult(
+            photos,
+            totalItemCount,
+            imageItemCount,
+            supportedImageItemCount,
+            skippedUnsupportedImageCount,
+            skippedMissingMetadataImageCount,
+            skippedInvalidDimensionImageCount);
+    }
 
     private static bool TryGetItemsArray(JsonElement rootElement, out JsonElement itemsElement)
     {
@@ -241,15 +292,28 @@ public sealed class OneDriveWallpaperSourceService(
             && legacyAlbumElement.ValueKind == JsonValueKind.Object;
     }
 
-    private static bool IsImageItem(JsonElement itemElement) =>
-        itemElement.TryGetProperty("image", out var imageElement)
-        && imageElement.ValueKind == JsonValueKind.Object
-        && imageElement.TryGetProperty("width", out var widthElement)
-        && widthElement.ValueKind == JsonValueKind.Number
-        && imageElement.TryGetProperty("height", out var heightElement)
-        && heightElement.ValueKind == JsonValueKind.Number
-        && !string.IsNullOrWhiteSpace(GetOptionalStringProperty(itemElement, "id"))
-        && !string.IsNullOrWhiteSpace(GetOptionalStringProperty(itemElement, "name"));
+    private static bool TryGetImageDimensions(
+        JsonElement itemElement,
+        out int width,
+        out int height)
+    {
+        width = 0;
+        height = 0;
+
+        if (!itemElement.TryGetProperty("image", out var imageElement)
+            || imageElement.ValueKind != JsonValueKind.Object
+            || !imageElement.TryGetProperty("width", out var widthElement)
+            || widthElement.ValueKind != JsonValueKind.Number
+            || !imageElement.TryGetProperty("height", out var heightElement)
+            || heightElement.ValueKind != JsonValueKind.Number)
+        {
+            return false;
+        }
+
+        width = widthElement.GetInt32();
+        height = heightElement.GetInt32();
+        return true;
+    }
 
     internal static bool IsSupportedWallpaperFileName(
         string? fileName,
@@ -323,5 +387,17 @@ public sealed class OneDriveWallpaperSourceService(
         }
 
         return errorPayload;
+    }
+
+    private sealed record PhotoPageResult(
+        IReadOnlyList<OneDriveWallpaperPhoto> Photos,
+        int TotalItemCount,
+        int ImageItemCount,
+        int SupportedImageItemCount,
+        int SkippedUnsupportedImageCount,
+        int SkippedMissingMetadataImageCount,
+        int SkippedInvalidDimensionImageCount)
+    {
+        public static PhotoPageResult Empty { get; } = new([], 0, 0, 0, 0, 0, 0);
     }
 }
