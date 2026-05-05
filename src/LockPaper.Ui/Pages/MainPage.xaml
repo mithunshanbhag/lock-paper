@@ -85,12 +85,42 @@
                                            Style="{StaticResource CardSummaryLabelStyle}" />
                                 </VerticalStackLayout>
 
-                                <Button Grid.Column="1"
-                                        Text="↻"
-                                        Style="{StaticResource RefreshFabButtonStyle}"
-                                        Command="{Binding PrimaryActionCommand}"
-                                        IsEnabled="{Binding IsPrimaryActionEnabled}"
-                                        SemanticProperties.Description="{Binding PrimaryActionText}" />
+                                <Grid Grid.Column="1">
+                                    <Button Text="↻"
+                                            Style="{StaticResource RefreshFabButtonStyle}"
+                                            Command="{Binding PrimaryActionCommand}"
+                                            IsEnabled="{Binding IsPrimaryActionEnabled}"
+                                            SemanticProperties.Description="{Binding PrimaryActionText}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button"
+                                                         Binding="{Binding IsWallpaperRefreshInProgress}"
+                                                         Value="True">
+                                                <Setter Property="IsVisible"
+                                                        Value="False" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+
+                                    <Border Style="{StaticResource RefreshFabSpinnerBorderStyle}"
+                                            IsVisible="False"
+                                            SemanticProperties.Description="Refreshing lock screen">
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border"
+                                                         Binding="{Binding IsWallpaperRefreshInProgress}"
+                                                         Value="True">
+                                                <Setter Property="IsVisible"
+                                                        Value="True" />
+                                            </DataTrigger>
+                                        </Border.Triggers>
+
+                                        <ActivityIndicator Color="White"
+                                                           IsRunning="{Binding IsWallpaperRefreshInProgress}"
+                                                           WidthRequest="20"
+                                                           HeightRequest="20"
+                                                           HorizontalOptions="Center"
+                                                           VerticalOptions="Center" />
+                                    </Border>
+                                </Grid>
                             </Grid>
 
                             <Label Text="{Binding DisplaySummaryText}"
@@ -146,11 +176,34 @@
                                            Style="{StaticResource ActivityPrimaryLabelStyle}" />
                                 </VerticalStackLayout>
 
-                                <Border Grid.Column="1"
-                                        Style="{StaticResource StatusBadgeBorderStyle}">
-                                    <Label Text="{Binding LastAttemptStatusText}"
-                                           Style="{StaticResource StatusBadgeLabelStyle}" />
-                                </Border>
+                                <Grid Grid.Column="1">
+                                    <Border Style="{StaticResource StatusBadgeBorderStyle}">
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border"
+                                                         Binding="{Binding LastAttemptStatusText}"
+                                                         Value="Success">
+                                                <Setter Property="IsVisible"
+                                                        Value="False" />
+                                            </DataTrigger>
+                                        </Border.Triggers>
+
+                                        <Label Text="{Binding LastAttemptStatusText}"
+                                               Style="{StaticResource StatusBadgeLabelStyle}" />
+                                    </Border>
+
+                                    <Label Text="✓"
+                                           Style="{StaticResource StatusSuccessIconLabelStyle}"
+                                           IsVisible="False">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label"
+                                                         Binding="{Binding LastAttemptStatusText}"
+                                                         Value="Success">
+                                                <Setter Property="IsVisible"
+                                                        Value="True" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </Grid>
                             </Grid>
 
                             <Label Text="{Binding LastAttemptDetailText}"

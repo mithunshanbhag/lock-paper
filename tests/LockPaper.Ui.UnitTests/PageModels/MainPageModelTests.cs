@@ -36,6 +36,7 @@ public class MainPageModelTests
         Assert.Equal(string.Empty, model.DisplaySummaryMetaText);
         Assert.Equal(string.Empty, model.DisplaySummaryText);
         Assert.False(model.ShowDisplayPreviewStage);
+        Assert.False(model.IsWallpaperRefreshInProgress);
         Assert.Equal(string.Empty, model.LastAttemptText);
         Assert.Equal(string.Empty, model.LastAttemptDetailText);
         Assert.False(model.ShowLastAttemptDetailText);
@@ -521,8 +522,10 @@ public class MainPageModelTests
         Assert.Equal(1, wallpaperRefreshService.RefreshCallCount);
         Assert.Equal("Refresh lock screen", model.PrimaryActionText);
         Assert.True(model.IsPrimaryActionEnabled);
+        Assert.False(model.IsWallpaperRefreshInProgress);
         Assert.Equal(DateTimeOffset.Parse("2026-04-30T21:15:00+05:30").ToString("t"), model.LastAttemptText);
-        Assert.Equal("From lockpaper", model.LastAttemptDetailText);
+        Assert.Equal(string.Empty, model.LastAttemptDetailText);
+        Assert.False(model.ShowLastAttemptDetailText);
         Assert.Equal("Success", model.LastAttemptStatusText);
         Assert.False(model.ShowFeedback);
         Assert.Equal(string.Empty, model.FeedbackText);
@@ -570,6 +573,49 @@ public class MainPageModelTests
         Assert.Equal("Error", model.LastAttemptStatusText);
         Assert.Equal("Manual only for now", model.NextAttemptText);
         Assert.Equal("Try again", model.NextAttemptStatusText);
+    }
+
+    [Fact]
+    public async Task PrimaryActionCommand_WhenWallpaperRefreshIsInProgress_ShouldHideProgressFeedbackText()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var refreshCompletionSource = new TaskCompletionSource<WallpaperRefreshResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var model = new MainPageModel(
+            new FakeOneDriveAuthenticationService
+            {
+                CurrentState = OneDriveConnectionState.CreateConnected("family@example.com"),
+            },
+            new FakeOneDriveAlbumDiscoveryService(),
+            new FakeDeviceDisplayService(),
+            new FakeWallpaperRefreshService
+            {
+                PendingRefreshResult = refreshCompletionSource.Task,
+            },
+            dispatcher,
+            NullLogger<MainPageModel>.Instance);
+
+        await model.InitializeAsync();
+
+        var commandTask = model.PrimaryActionCommand.ExecuteAsync(null);
+
+        await WaitForConditionAsync(() => model.IsWallpaperRefreshInProgress);
+
+        Assert.False(model.IsPrimaryActionEnabled);
+        Assert.True(model.IsWallpaperRefreshInProgress);
+        Assert.False(model.ShowFeedback);
+        Assert.Equal(string.Empty, model.FeedbackText);
+
+        refreshCompletionSource.SetResult(
+            WallpaperRefreshResult.Succeeded(
+                DateTimeOffset.Parse("2026-04-30T21:15:00+05:30"),
+                1,
+                "lockpaper",
+                "sunrise.jpg",
+                @"C:\temp\updated-lockscreen.jpg"));
+
+        await commandTask;
+
+        Assert.False(model.IsWallpaperRefreshInProgress);
     }
 
     [Fact]
@@ -679,6 +725,8 @@ public class MainPageModelTests
         public WallpaperRefreshResult RefreshResult { get; set; } =
             WallpaperRefreshResult.Succeeded(DateTimeOffset.Now, 1, "lockpaper", "sunrise.jpg");
 
+        public Task<WallpaperRefreshResult>? PendingRefreshResult { get; set; }
+
         public int GetCurrentWallpaperPreviewFilePathCallCount { get; private set; }
 
         public int RefreshCallCount { get; private set; }
@@ -686,7 +734,7 @@ public class MainPageModelTests
         public Task<WallpaperRefreshResult> RefreshAsync(CancellationToken cancellationToken = default)
         {
             RefreshCallCount++;
-            return Task.FromResult(RefreshResult);
+            return PendingRefreshResult ?? Task.FromResult(RefreshResult);
         }
 
         public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default)

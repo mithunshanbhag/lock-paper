@@ -33,3 +33,4 @@
 - Android lock-screen wallpaper selection should normalize the target display to portrait and use EXIF-aware image inspection before falling back to a landscape photo, because Microsoft Graph `image.width` and `image.height` reflect raw file dimensions rather than display rotation.
 - Android lock-screen wallpaper application should rewrite the downloaded file into an EXIF-normalized portrait canvas before calling `WallpaperManager.SetStream`, using fit-center scaling on a portrait bitmap to avoid rotated or center-cropped results.
 - Wallpaper refresh now persists the last applied OneDrive album/photo key under the shared `WallpaperState` folder and skips that exact photo on the next manual refresh, returning `NoEligiblePhotos` if no different candidate remains.
+- The connected-state refresh FAB now swaps to an inline spinner while a manual refresh is running, and a successful last-update row shows only a green check without the old `From {album}` detail text.

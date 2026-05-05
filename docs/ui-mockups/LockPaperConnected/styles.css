@@ -106,7 +106,6 @@ h1 {
 }
 
 .account-chip,
-.status-pill,
 .status-note {
   display: inline-flex;
   align-items: center;
@@ -169,6 +168,17 @@ h1 {
   color: #ffffff;
   box-shadow: 0 12px 22px rgba(70, 87, 223, 0.22);
   cursor: pointer;
+  position: relative;
+}
+
+.refresh-fab__icon,
+.refresh-fab__spinner {
+  grid-area: 1 / 1;
+}
+
+.refresh-fab__icon {
+  display: inline-grid;
+  place-items: center;
 }
 
 .refresh-fab svg {
@@ -179,6 +189,31 @@ h1 {
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
+}
+
+.refresh-fab__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.2px solid rgba(255, 255, 255, 0.34);
+  border-top-color: #ffffff;
+  border-radius: 999px;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.refresh-fab.is-refreshing {
+  cursor: default;
+}
+
+.refresh-fab.is-refreshing .refresh-fab__icon {
+  opacity: 0;
+}
+
+.refresh-fab.is-refreshing .refresh-fab__spinner {
+  opacity: 1;
+  transform: scale(1);
+  animation: refresh-spin 0.8s linear infinite;
 }
 
 .display-stage {
@@ -224,16 +259,16 @@ h1 {
   line-height: 1.2;
 }
 
-.status-secondary {
-  margin: 8px 0 0;
-  color: var(--text-muted);
-  font-size: 0.92rem;
-}
-
-.status-pill {
-  align-self: center;
-  background: var(--success-soft);
+.status-success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
   color: var(--success-text);
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .status-note {
@@ -310,4 +345,10 @@ h1 {
   border: 0;
   background: var(--danger);
   color: #ffffff;
+}
+
+@keyframes refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

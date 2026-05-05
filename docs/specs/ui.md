@@ -26,7 +26,7 @@ Required elements:
 
 - App title.
 - A lightweight logout affordance next to the app title, such as a green tick icon.
-- A primary manual refresh action. It can be a compact icon button or FAB placed inside the display-summary card instead of a full-width text button, as long as it remains obvious and reachable.
+- A primary manual refresh action. It can be a compact icon button or FAB placed inside the display-summary card instead of a full-width text button, as long as it remains obvious and reachable. While a manual refresh is running, keep that action in place and show an inline spinner rather than separate progress copy above the cards.
 - A connected Microsoft account summary shown compactly near the top of the screen; it can be a chip, row, or small card rather than a full-height section.
 - A single **Display summary** card that acts as the main visual anchor and shows every attached display together inside that card as rectangles with the display resolution shown inside each rectangle.
 - A concise activity area for **Last attempt** and **Next attempt** details. These can be shown as compact rows inside one shared card instead of two large cards.
@@ -38,7 +38,7 @@ The connected/disconnected screen should adapt to these situations instead of br
 - **Signed out** - show sign-in call to action.
 - **Album missing** - keep the connected layout visible, show a concise error, and explain how to create or rename a matching album.
 - **Album empty or ineligible** - explain that usable photos are required.
-- **Change in progress** - disable the primary button and show progress text.
+- **Change in progress** - disable the primary button and show progress inline on the refresh affordance itself.
 - **Last attempt failed** - show a concise error summary and let the user retry.
 - **Wallpaper scheduling not ready yet** - keep the activity status visible with honest placeholder text instead of hiding it.
 - **No current lock-screen image available** - keep the solid-color display rectangles instead of a thumbnail.
@@ -68,6 +68,7 @@ The connected/disconnected screen should adapt to these situations instead of br
 - Keep last-attempt and next-attempt copy to a short line whenever possible.
 - Do not foreground long photo file names in the primary reading path; if the photo name is shown at all, treat it as secondary text and truncate it when space is tight.
 - Prefer terse status copy such as **Updated 6:36 pm** and **Manual only for now** over full sentences.
+- When the last update succeeds, a simple green check icon is enough; do not repeat a `Success` chip plus extra source subtext.
 - Do not add extra helper copy, primary/secondary labels, or monitor metadata when the rectangles already communicate the display summary clearly.
 - Before any manual refresh runs, the display summary should reflect the current lock-screen wallpaper thumbnail when one is available.
 - Do not imply that desktop wallpaper is managed in v1.

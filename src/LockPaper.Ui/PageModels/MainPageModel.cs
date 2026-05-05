@@ -76,6 +76,9 @@ public partial class MainPageModel : ObservableObject
     private bool _showDisplayPreviewStage;
 
     [ObservableProperty]
+    private bool _isWallpaperRefreshInProgress;
+
+    [ObservableProperty]
     private string _lastAttemptText = string.Empty;
 
     [ObservableProperty]
@@ -434,6 +437,7 @@ public partial class MainPageModel : ObservableObject
         NextAttemptText = string.Empty;
         NextAttemptStatusText = string.Empty;
         DisplayPreviews.Clear();
+        IsWallpaperRefreshInProgress = false;
         _currentWallpaperPreviewFilePath = string.Empty;
         _lastWallpaperRefreshResult = null;
         _hasRequestedPostConnectionPermissions = false;
@@ -747,9 +751,10 @@ public partial class MainPageModel : ObservableObject
 
     private void BeginWallpaperRefresh()
     {
+        IsWallpaperRefreshInProgress = true;
         IsPrimaryActionEnabled = false;
         PrimaryActionText = "Refreshing lock screen...";
-        SetFeedback("Updating the lock screen...");
+        ClearFeedback();
     }
 
     private void HandleWallpaperRefreshResult(WallpaperRefreshResult result)
@@ -761,6 +766,7 @@ public partial class MainPageModel : ObservableObject
             result.AppliedWallpaperFilePath);
 
         _lastWallpaperRefreshResult = result;
+        IsWallpaperRefreshInProgress = false;
 
         switch (result.Status)
         {
@@ -1033,9 +1039,7 @@ public partial class MainPageModel : ObservableObject
             : $"{matchingAlbumCount} matching albums were found, but none of them have usable photos.";
 
     private static string BuildSuccessfulRefreshDetail(string albumName) =>
-        string.IsNullOrWhiteSpace(albumName)
-            ? "Wallpaper updated"
-            : $"From {albumName}";
+        string.Empty;
 
     private static string FormatAccountLabel(string accountLabel) =>
         string.IsNullOrWhiteSpace(accountLabel)

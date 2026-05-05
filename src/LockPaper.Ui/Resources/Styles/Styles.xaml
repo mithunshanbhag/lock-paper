@@ -287,6 +287,30 @@
         </Setter>
     </Style>
 
+    <Style x:Key="RefreshFabSpinnerBorderStyle"
+           TargetType="Border">
+        <Setter Property="WidthRequest"
+                Value="44" />
+        <Setter Property="HeightRequest"
+                Value="44" />
+        <Setter Property="Padding"
+                Value="0" />
+        <Setter Property="Background"
+                Value="{StaticResource PrimaryActionBackgroundBrush}" />
+        <Setter Property="StrokeThickness"
+                Value="0" />
+        <Setter Property="StrokeShape"
+                Value="RoundRectangle 22" />
+        <Setter Property="Shadow">
+            <Setter.Value>
+                <Shadow Brush="{StaticResource PrimaryActionPressedColor}"
+                        Opacity="0.22"
+                        Radius="18"
+                        Offset="0,10" />
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="CardValueLabelStyle"
            TargetType="Label">
         <Setter Property="FontSize"
@@ -353,6 +377,20 @@
                 Value="Bold" />
         <Setter Property="TextColor"
                 Value="{StaticResource PrimaryActionPressedColor}" />
+    </Style>
+
+    <Style x:Key="StatusSuccessIconLabelStyle"
+           TargetType="Label">
+        <Setter Property="FontSize"
+                Value="30" />
+        <Setter Property="FontAttributes"
+                Value="Bold" />
+        <Setter Property="TextColor"
+                Value="{StaticResource SuccessTextColor}" />
+        <Setter Property="VerticalOptions"
+                Value="Start" />
+        <Setter Property="HorizontalOptions"
+                Value="Center" />
     </Style>
 
     <Style x:Key="DisplayPreviewResolutionLabelStyle"
