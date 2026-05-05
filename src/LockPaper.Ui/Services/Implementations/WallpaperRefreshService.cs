@@ -15,6 +15,8 @@ public sealed class WallpaperRefreshService(
     IWallpaperSelectionService wallpaperSelectionService,
     ILogger<WallpaperRefreshService> logger) : IWallpaperRefreshService
 {
+    private const string PersistedWallpaperPhotoKeyFileName = "current-lockscreen-photo-key.txt";
+
     public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default) =>
         lockScreenWallpaperService.GetCurrentWallpaperPreviewFilePathAsync(cancellationToken);
 
@@ -38,6 +40,12 @@ public sealed class WallpaperRefreshService(
             logger.LogInformation(
                 "Wallpaper refresh selected target display {DisplayLabel}.",
                 FormatDisplayLabel(wallpaperTargetDisplay));
+
+            var currentWallpaperPhotoKey = await TryGetPersistedWallpaperPhotoKeyAsync(cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(currentWallpaperPhotoKey))
+            {
+                logger.LogInformation("Wallpaper refresh will avoid reusing the currently applied OneDrive photo when possible.");
+            }
 
             IReadOnlyList<OneDriveWallpaperAlbum> matchingAlbums;
             try
@@ -90,6 +98,17 @@ public sealed class WallpaperRefreshService(
                     if (selectedPhoto is null)
                     {
                         break;
+                    }
+
+                    var selectedPhotoKey = BuildWallpaperPhotoKey(album.Id, selectedPhoto.Id);
+                    if (string.Equals(selectedPhotoKey, currentWallpaperPhotoKey, StringComparison.Ordinal))
+                    {
+                        logger.LogInformation(
+                            "Skipping photo '{PhotoName}' from album '{AlbumName}' because it is already applied to the lock screen.",
+                            selectedPhoto.Name,
+                            album.Name);
+                        remainingPhotos.RemoveAll(photo => string.Equals(photo.Id, selectedPhoto.Id, StringComparison.OrdinalIgnoreCase));
+                        continue;
                     }
 
                     logger.LogInformation(
@@ -150,6 +169,8 @@ public sealed class WallpaperRefreshService(
                         "Applied wallpaper candidate '{PhotoName}' from album '{AlbumName}' to the lock screen.",
                         selectedPhoto.Name,
                         album.Name);
+
+                    await PersistWallpaperPhotoKeyAsync(selectedPhotoKey, cancellationToken).ConfigureAwait(false);
 
                     return WallpaperRefreshResult.Succeeded(
                         attemptedAtLocal,
@@ -221,6 +242,32 @@ public sealed class WallpaperRefreshService(
     private static string FormatDisplayLabel(DeviceDisplayInfo display) =>
         $"{display.PixelWidth}x{display.PixelHeight}, primary={display.IsPrimary}";
 
+    private static string BuildWallpaperPhotoKey(string albumId, string photoId) => $"{albumId}:{photoId}";
+
+    private static async Task PersistWallpaperPhotoKeyAsync(string photoKey, CancellationToken cancellationToken)
+    {
+        var wallpaperStateDirectory = GetWallpaperStateDirectory();
+        Directory.CreateDirectory(wallpaperStateDirectory);
+
+        await File
+            .WriteAllTextAsync(GetPersistedWallpaperPhotoKeyFilePath(), photoKey, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<string?> TryGetPersistedWallpaperPhotoKeyAsync(CancellationToken cancellationToken)
+    {
+        var persistedWallpaperPhotoKeyFilePath = GetPersistedWallpaperPhotoKeyFilePath();
+        if (!File.Exists(persistedWallpaperPhotoKeyFilePath))
+        {
+            return null;
+        }
+
+        var persistedWallpaperPhotoKey = (await File.ReadAllTextAsync(persistedWallpaperPhotoKeyFilePath, cancellationToken).ConfigureAwait(false)).Trim();
+        return string.IsNullOrWhiteSpace(persistedWallpaperPhotoKey)
+            ? null
+            : persistedWallpaperPhotoKey;
+    }
+
     private static async Task<string> SaveWallpaperFileAsync(
         OneDriveWallpaperPhoto photo,
         byte[] imageBytes,
@@ -261,6 +308,23 @@ public sealed class WallpaperRefreshService(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LockPaper",
             "Wallpapers");
+#endif
+    }
+
+    private static string GetPersistedWallpaperPhotoKeyFilePath() =>
+        Path.Combine(GetWallpaperStateDirectory(), PersistedWallpaperPhotoKeyFileName);
+
+    private static string GetWallpaperStateDirectory()
+    {
+#if WINDOWS
+        return Path.Combine(
+            Windows.Storage.ApplicationData.Current.LocalFolder.Path,
+            "WallpaperState");
+#else
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "LockPaper",
+            "WallpaperState");
 #endif
     }
 
