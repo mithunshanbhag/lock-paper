@@ -1,3 +1,4 @@
+using Microsoft.ApplicationInsights;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -11,11 +12,13 @@ namespace LockPaper.Ui
 #endif
 
         private readonly ILogger<App> _logger;
+        private readonly TelemetryClient _telemetryClient;
 
-        public App(ILogger<App> logger)
+        public App(ILogger<App> logger, TelemetryClient telemetryClient)
         {
             InitializeComponent();
             _logger = logger;
+            _telemetryClient = telemetryClient;
 
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -41,15 +44,30 @@ namespace LockPaper.Ui
             if (e.ExceptionObject is Exception exception)
             {
                 _logger.LogCritical(exception, "Unhandled application exception. Is terminating: {IsTerminating}", e.IsTerminating);
+                FlushTelemetry();
                 return;
             }
 
             _logger.LogCritical("Unhandled non-exception application failure. Is terminating: {IsTerminating}. Payload: {Payload}", e.IsTerminating, e.ExceptionObject);
+            FlushTelemetry();
         }
 
         private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
             _logger.LogCritical(e.Exception, "Unobserved task exception reached the application root.");
+            FlushTelemetry();
+        }
+
+        private void FlushTelemetry()
+        {
+            try
+            {
+                _telemetryClient.Flush();
+            }
+            catch (Exception exception)
+            {
+                _logger.LogDebug(exception, "Flushing Application Insights telemetry failed.");
+            }
         }
     }
 }

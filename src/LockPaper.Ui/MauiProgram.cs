@@ -1,6 +1,8 @@
 using LockPaper.Ui.Services.Implementations;
 using LockPaper.Ui.Constants;
+using LockPaper.Ui.Misc.Telemetry;
 using LockPaper.Ui.Misc.Utilities;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.ApplicationInsights;
@@ -40,6 +42,7 @@ public static class MauiProgram
         {
             options.ConnectionString = appInsightsConfig.ConnectionString;
         });
+        builder.Services.AddSingleton<ITelemetryInitializer, LockPaperTelemetryInitializer>();
 
         builder.Services.AddApplicationInsightsTelemetryWorkerService(options =>
         {

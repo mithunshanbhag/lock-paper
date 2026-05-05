@@ -163,9 +163,12 @@ public partial class MainPageModel : ObservableObject
 
         if (result.State.Status != OneDriveConnectionStatus.SignedOut)
         {
-            await RefreshDisplaySummaryAsync(refreshWallpaperPreview: true);
+            await TryRefreshDisplaySummaryAsync(
+                refreshWallpaperPreview: true,
+                reason: "post-sign-in");
         }
 
+        _logger.LogInformation("Refreshing OneDrive album discovery after sign-in.");
         await RefreshAlbumDiscoveryAsync(result.State);
     }
 
@@ -187,9 +190,12 @@ public partial class MainPageModel : ObservableObject
 
         if (connectionState.Status != OneDriveConnectionStatus.SignedOut)
         {
-            await RefreshDisplaySummaryAsync(refreshWallpaperPreview: true);
+            await TryRefreshDisplaySummaryAsync(
+                refreshWallpaperPreview: true,
+                reason: "connected-state-refresh");
         }
 
+        _logger.LogInformation("Refreshing OneDrive album discovery after loading the cached connection state.");
         await RefreshAlbumDiscoveryAsync(connectionState);
     }
 
@@ -577,7 +583,9 @@ public partial class MainPageModel : ObservableObject
 
         if (result.Status == WallpaperRefreshStatus.Succeeded)
         {
-            await RefreshDisplaySummaryAsync(refreshWallpaperPreview: false);
+            await TryRefreshDisplaySummaryAsync(
+                refreshWallpaperPreview: false,
+                reason: "post-wallpaper-refresh");
         }
     }
 
@@ -678,6 +686,27 @@ public partial class MainPageModel : ObservableObject
         {
             _logger.LogError(exception, "Applying the display summary on the UI thread failed.");
             throw;
+        }
+    }
+
+    private async Task TryRefreshDisplaySummaryAsync(bool refreshWallpaperPreview, string reason)
+    {
+        _logger.LogInformation(
+            "Refreshing display summary. Reason: {Reason}. Refresh wallpaper preview: {RefreshWallpaperPreview}.",
+            reason,
+            refreshWallpaperPreview);
+
+        try
+        {
+            await RefreshDisplaySummaryAsync(refreshWallpaperPreview).ConfigureAwait(false);
+            _logger.LogInformation("Display summary refresh completed. Reason: {Reason}.", reason);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Display summary refresh failed. Reason: {Reason}. LockPaper will continue without updating the display preview.",
+                reason);
         }
     }
 

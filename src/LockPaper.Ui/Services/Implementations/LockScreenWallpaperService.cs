@@ -36,7 +36,18 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
     public async Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default)
     {
 #if ANDROID
-        var previewFilePath = await GetAndroidCurrentWallpaperPreviewFilePathAsync(cancellationToken).ConfigureAwait(false);
+        string? previewFilePath;
+        try
+        {
+            previewFilePath = await GetAndroidCurrentWallpaperPreviewFilePathAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Reading the current Android lock-screen wallpaper preview from WallpaperManager failed. LockPaper will fall back to the last persisted wallpaper preview when possible.");
+            previewFilePath = null;
+        }
 #elif WINDOWS
         var previewFilePath = await GetWindowsCurrentWallpaperPreviewFilePathAsync(cancellationToken).ConfigureAwait(false);
 #else
