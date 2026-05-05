@@ -43,9 +43,7 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
         }
         catch (Exception exception)
         {
-            logger.LogWarning(
-                exception,
-                "Reading the current Android lock-screen wallpaper preview from WallpaperManager failed. LockPaper will fall back to the last persisted wallpaper preview when possible.");
+            LogAndroidWallpaperPreviewFailure(exception);
             previewFilePath = null;
         }
 #elif WINDOWS
@@ -64,6 +62,10 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
         if (!string.IsNullOrWhiteSpace(persistedWallpaperFilePath))
         {
             logger.LogInformation("Falling back to the persisted lock-screen wallpaper path for the display preview.");
+        }
+        else
+        {
+            logger.LogInformation("No current lock-screen wallpaper preview was available from the platform or persisted state.");
         }
 
         return persistedWallpaperFilePath;
@@ -108,6 +110,30 @@ public sealed class LockScreenWallpaperService(ILogger<LockScreenWallpaperServic
 
         using var inputStream = new Android.OS.ParcelFileDescriptor.AutoCloseInputStream(activeWallpaperFile);
         return await SaveCurrentWallpaperPreviewAsync(inputStream, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void LogAndroidWallpaperPreviewFailure(Exception exception)
+    {
+        var sdkInt = (int)Android.OS.Build.VERSION.SdkInt;
+        var applicationContext = Android.App.Application.Context;
+        bool? hasReadMediaImagesPermission = sdkInt >= 33 && applicationContext is not null
+            ? HasAndroidPermission(applicationContext, Android.Manifest.Permission.ReadMediaImages)
+            : null;
+        bool? hasReadExternalStoragePermission = applicationContext is not null
+            ? HasAndroidPermission(applicationContext, Android.Manifest.Permission.ReadExternalStorage)
+            : null;
+
+        logger.LogWarning(
+            exception,
+            "Reading the current Android lock-screen wallpaper preview from WallpaperManager failed. Android SDK: {SdkInt}. READ_MEDIA_IMAGES granted: {HasReadMediaImagesPermission}. READ_EXTERNAL_STORAGE granted: {HasReadExternalStoragePermission}. LockPaper will fall back to the last persisted wallpaper preview when possible.",
+            sdkInt,
+            hasReadMediaImagesPermission,
+            hasReadExternalStoragePermission);
+    }
+
+    private static bool HasAndroidPermission(Android.Content.Context context, string permission)
+    {
+        return context.CheckSelfPermission(permission) == Android.Content.PM.Permission.Granted;
     }
 #endif
 

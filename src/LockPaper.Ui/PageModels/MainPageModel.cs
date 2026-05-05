@@ -283,11 +283,9 @@ public partial class MainPageModel : ObservableObject
             return;
         }
 
-        _logger.LogInformation(
-            "Applying album discovery result {Status} with {MatchingAlbumCount} matching album(s). Error code: {ErrorCode}.",
-            albumDiscoveryResult.Status,
-            albumDiscoveryResult.MatchingAlbumNames.Count,
-            albumDiscoveryResult.ErrorCode);
+        LogAlbumDiscoveryResult(
+            "Applying album discovery result",
+            albumDiscoveryResult);
 
         ApplyAlbumStatus(LockPaperScenario.Connected, albumDiscoveryResult);
         ApplyAttemptStatus(LockPaperScenario.Connected, albumDiscoveryResult);
@@ -516,11 +514,7 @@ public partial class MainPageModel : ObservableObject
         try
         {
             var result = await _oneDriveAlbumDiscoveryService.GetMatchingAlbumsAsync().ConfigureAwait(false);
-            _logger.LogInformation(
-                "Album discovery completed with status {Status}. Matching album count: {MatchingAlbumCount}. Error code: {ErrorCode}.",
-                result.Status,
-                result.MatchingAlbumNames.Count,
-                result.ErrorCode);
+            LogAlbumDiscoveryResult("Album discovery completed", result);
             return result;
         }
         catch (Exception exception)
@@ -715,6 +709,26 @@ public partial class MainPageModel : ObservableObject
 
     private static string BuildNoEligiblePhotosMessage() =>
         "LockPaper found matching albums, but none of them contained usable photos for the lock screen. On Windows, use JPG, JPEG, PNG, or BMP images.";
+
+    private void LogAlbumDiscoveryResult(string messagePrefix, OneDriveAlbumDiscoveryResult result)
+    {
+        if (string.IsNullOrWhiteSpace(result.ErrorCode))
+        {
+            _logger.LogInformation(
+                "{MessagePrefix} with status {Status}. Matching album count: {MatchingAlbumCount}.",
+                messagePrefix,
+                result.Status,
+                result.MatchingAlbumNames.Count);
+            return;
+        }
+
+        _logger.LogInformation(
+            "{MessagePrefix} with status {Status}. Matching album count: {MatchingAlbumCount}. Error code: {ErrorCode}.",
+            messagePrefix,
+            result.Status,
+            result.MatchingAlbumNames.Count,
+            result.ErrorCode);
+    }
 
     private static string BuildAlbumDiscoveryFailureMessage(OneDriveAlbumDiscoveryResult result)
     {
