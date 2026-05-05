@@ -111,6 +111,13 @@ Source mockup: `docs/ui-mockups/NoAlbumsFound/index.html`
 - The app must update the **lock-screen wallpaper** on supported Windows and Android devices.
 - The app must use platform-specific wallpaper APIs or platform-supported mechanisms rather than trying to simulate the change in-app.
 - The app should store enough local state to report the last attempted wallpaper change and its outcome.
+- The app should download photo bytes only for the image selected for the current wallpaper change cycle; it should not proactively cache every photo in the source OneDrive album.
+- Before applying the wallpaper, the app must persist the selected image into app-local storage so platform wallpaper APIs and in-app preview recovery can reference a local file-backed image. The current implementation stores these local wallpaper files in a `Wallpapers` folder under the app-local data root:
+  - Windows: `Windows.Storage.ApplicationData.Current.LocalFolder\Wallpapers` (typically a packaged-app path under `%LOCALAPPDATA%\Packages\<PackageFamilyName>\LocalState\Wallpapers`)
+  - Android and other non-Windows targets: `<LocalApplicationData>\LockPaper\Wallpapers`
+- The app should keep a small rolling set of recently applied wallpaper files in app-local storage rather than deleting the current file immediately after apply.
+- The app should prune older locally saved wallpaper files after a successful save, retaining the current wallpaper plus the five newest wallpaper files in the local wallpaper cache.
+- The app should persist lightweight wallpaper state separately from the wallpaper-image cache, including the currently applied wallpaper reference, the current OneDrive photo identity when available, and a current wallpaper preview image that replaces stale preview files when refreshed. The current implementation stores this state in a sibling `WallpaperState` folder under the same app-local data root.
 - **Open product question:** the exact photo fitting policy for mismatched aspect ratios is not finalized. The first implementation may rely on platform-default fitting behavior until a final rule is chosen.
 
 ### FR6. Minimal UI
