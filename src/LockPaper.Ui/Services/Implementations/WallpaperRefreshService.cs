@@ -101,7 +101,7 @@ public sealed class WallpaperRefreshService(
                     }
 
                     var selectedPhotoKey = BuildWallpaperPhotoKey(album.Id, selectedPhoto.Id);
-                    if (string.Equals(selectedPhotoKey, currentWallpaperPhotoKey, StringComparison.Ordinal))
+                    if (string.Equals(selectedPhotoKey, currentWallpaperPhotoKey, StringComparison.OrdinalIgnoreCase))
                     {
                         logger.LogInformation(
                             "Skipping photo '{PhotoName}' from album '{AlbumName}' because it is already applied to the lock screen.",

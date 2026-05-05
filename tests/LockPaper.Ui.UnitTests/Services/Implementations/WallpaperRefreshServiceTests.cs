@@ -286,7 +286,9 @@ public sealed class WallpaperRefreshServiceTests : IDisposable
     private static void WritePersistedWallpaperPhotoKey(string photoKey)
     {
         var persistedWallpaperPhotoKeyFilePath = GetPersistedWallpaperPhotoKeyFilePath();
-        Directory.CreateDirectory(Path.GetDirectoryName(persistedWallpaperPhotoKeyFilePath)!);
+        var wallpaperStateDirectory = Path.GetDirectoryName(persistedWallpaperPhotoKeyFilePath);
+        Assert.False(string.IsNullOrWhiteSpace(wallpaperStateDirectory));
+        Directory.CreateDirectory(wallpaperStateDirectory!);
         File.WriteAllText(persistedWallpaperPhotoKeyFilePath, photoKey);
     }
 
