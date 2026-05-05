@@ -34,3 +34,4 @@
 - Android lock-screen wallpaper application should rewrite the downloaded file into an EXIF-normalized portrait canvas before calling `WallpaperManager.SetStream`, using fit-center scaling on a portrait bitmap to avoid rotated or center-cropped results.
 - Wallpaper refresh now persists the last applied OneDrive album/photo key under the shared `WallpaperState` folder and skips that exact photo on the next manual refresh, returning `NoEligiblePhotos` if no different candidate remains.
 - The connected-state refresh FAB now swaps to an inline spinner while a manual refresh is running, and a successful last-update row shows only a green check without the old `From {album}` detail text.
+- Wallpaper diagnostics now log per-album OneDrive child/image/support/usable counts plus wallpaper-refresh orientation summaries and skip counts (already applied, Android EXIF mismatch) so Android photo-eligibility gaps can be traced from Graph payload to final selection.

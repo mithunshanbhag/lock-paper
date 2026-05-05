@@ -152,18 +152,27 @@ public sealed class WallpaperRefreshServiceTests : IDisposable
         WritePersistedWallpaperPhotoKey("album-1:photo-1");
 
         var lockScreenWallpaperService = new FakeLockScreenWallpaperService();
+        var logger = new TestLogger<WallpaperRefreshService>();
         var service = new WallpaperRefreshService(
             new FakeDeviceDisplayService(),
             lockScreenWallpaperService,
             new FakeOneDriveWallpaperSourceService(),
             new FakeRandomizer(),
             new FakeWallpaperSelectionService(),
-            NullLogger<WallpaperRefreshService>.Instance);
+            logger);
 
         var result = await service.RefreshAsync();
 
         Assert.Equal(WallpaperRefreshStatus.NoEligiblePhotos, result.Status);
         Assert.True(string.IsNullOrWhiteSpace(lockScreenWallpaperService.AppliedLocalFilePath));
+        Assert.Contains(
+            logger.Messages,
+            message => message.Contains("Album 'lockpaper' diagnostics", StringComparison.OrdinalIgnoreCase)
+                && message.Contains("matching-orientation photos 1", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            logger.Messages,
+            message => message.Contains("started with 1 usable photo(s); considered 1", StringComparison.OrdinalIgnoreCase)
+                && message.Contains("skipped already-applied photos 1", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
