@@ -17,6 +17,7 @@ public sealed class WallpaperRefreshService(
     ILogger<WallpaperRefreshService> logger) : IWallpaperRefreshService
 {
     internal const string PersistedWallpaperPhotoKeyFileName = "current-lockscreen-photo-key.txt";
+    internal const string PersistedAndroidExifMismatchPhotoKeysFileName = "android-exif-mismatch-photo-keys.txt";
 
     public Task<string?> GetCurrentWallpaperPreviewFilePathAsync(CancellationToken cancellationToken = default) =>
         lockScreenWallpaperService.GetCurrentWallpaperPreviewFilePathAsync(cancellationToken);
@@ -50,6 +51,14 @@ public sealed class WallpaperRefreshService(
             if (!string.IsNullOrWhiteSpace(currentWallpaperPhotoKey))
             {
                 logger.LogInformation("Wallpaper refresh will avoid reusing the currently applied OneDrive photo when possible.");
+            }
+
+            var persistedAndroidExifMismatchPhotoKeys = await TryGetPersistedAndroidExifMismatchPhotoKeysAsync(cancellationToken).ConfigureAwait(false);
+            if (persistedAndroidExifMismatchPhotoKeys.Count > 0)
+            {
+                logger.LogInformation(
+                    "Wallpaper refresh loaded {PersistedAndroidExifMismatchPhotoCount} cached Android EXIF mismatch photo(s) from prior runs.",
+                    persistedAndroidExifMismatchPhotoKeys.Count);
             }
 
             IReadOnlyList<OneDriveWallpaperAlbum> matchingAlbums;
@@ -112,7 +121,16 @@ public sealed class WallpaperRefreshService(
                     photoOrientationSummary.FallbackOnlyPhotoCount,
                     photoOrientationSummary.SquarePhotoCount);
 
-                var remainingPhotos = photos.ToList();
+                var remainingPhotos = FilterPreviouslyRejectedAndroidPhotos(photos, album.Id, persistedAndroidExifMismatchPhotoKeys);
+                var skippedPersistedAndroidExifMismatchPhotoCount = photos.Count - remainingPhotos.Count;
+                if (skippedPersistedAndroidExifMismatchPhotoCount > 0)
+                {
+                    logger.LogInformation(
+                        "Skipping {SkippedPersistedAndroidExifMismatchPhotoCount} previously rejected Android EXIF mismatch photo(s) for album '{AlbumName}' before random selection.",
+                        skippedPersistedAndroidExifMismatchPhotoCount,
+                        album.Name);
+                }
+
                 var consideredPhotoCount = 0;
                 var skippedCurrentWallpaperPhotoCount = 0;
                 var skippedAndroidExifMismatchPhotoCount = 0;
@@ -177,6 +195,13 @@ public sealed class WallpaperRefreshService(
                     else if (!orientationMatchesTarget.Value && remainingPhotos.Count > 1)
                     {
                         skippedAndroidExifMismatchPhotoCount++;
+                        if (persistedAndroidExifMismatchPhotoKeys.Add(selectedPhotoKey))
+                        {
+                            await PersistAndroidExifMismatchPhotoKeysAsync(
+                                persistedAndroidExifMismatchPhotoKeys,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+
                         logger.LogInformation(
                             "Skipping photo '{PhotoName}' for Android lock-screen wallpaper because its EXIF-aware dimensions do not match target display {DisplayLabel}. Remaining candidates in album: {RemainingCandidateCount}.",
                             selectedPhoto.Name,
@@ -365,6 +390,70 @@ public sealed class WallpaperRefreshService(
             : persistedWallpaperPhotoKey;
     }
 
+    private static List<OneDriveWallpaperPhoto> FilterPreviouslyRejectedAndroidPhotos(
+        IReadOnlyList<OneDriveWallpaperPhoto> photos,
+        string albumId,
+        HashSet<string> persistedAndroidExifMismatchPhotoKeys)
+    {
+        if (persistedAndroidExifMismatchPhotoKeys.Count == 0)
+        {
+            return photos.ToList();
+        }
+
+        return photos
+            .Where(photo => !persistedAndroidExifMismatchPhotoKeys.Contains(BuildWallpaperPhotoKey(albumId, photo.Id)))
+            .ToList();
+    }
+
+    private static async Task PersistAndroidExifMismatchPhotoKeysAsync(
+        HashSet<string> persistedAndroidExifMismatchPhotoKeys,
+        CancellationToken cancellationToken)
+    {
+        var wallpaperStateDirectory = GetWallpaperStateDirectory();
+        Directory.CreateDirectory(wallpaperStateDirectory);
+
+        var persistedAndroidExifMismatchPhotoKeysFilePath = GetPersistedAndroidExifMismatchPhotoKeysFilePath();
+        var persistedPhotoKeys = persistedAndroidExifMismatchPhotoKeys
+            .OrderBy(photoKey => photoKey, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        await File
+            .WriteAllLinesAsync(
+                persistedAndroidExifMismatchPhotoKeysFilePath,
+                persistedPhotoKeys,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<HashSet<string>> TryGetPersistedAndroidExifMismatchPhotoKeysAsync(CancellationToken cancellationToken)
+    {
+        var persistedAndroidExifMismatchPhotoKeysFilePath = GetPersistedAndroidExifMismatchPhotoKeysFilePath();
+        if (!File.Exists(persistedAndroidExifMismatchPhotoKeysFilePath))
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            var persistedPhotoKeys = await File
+                .ReadAllLinesAsync(persistedAndroidExifMismatchPhotoKeysFilePath, cancellationToken)
+                .ConfigureAwait(false);
+
+            return persistedPhotoKeys
+                .Select(photoKey => photoKey.Trim())
+                .Where(photoKey => !string.IsNullOrWhiteSpace(photoKey))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(
+                exception,
+                "LockPaper couldn't read the persisted Android EXIF mismatch photo keys from {PersistedAndroidExifMismatchPhotoKeysFilePath}.",
+                persistedAndroidExifMismatchPhotoKeysFilePath);
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     private static async Task<string> SaveWallpaperFileAsync(
         OneDriveWallpaperPhoto photo,
         byte[] imageBytes,
@@ -410,6 +499,9 @@ public sealed class WallpaperRefreshService(
 
     internal static string GetPersistedWallpaperPhotoKeyFilePath() =>
         Path.Combine(GetWallpaperStateDirectory(), PersistedWallpaperPhotoKeyFileName);
+
+    internal static string GetPersistedAndroidExifMismatchPhotoKeysFilePath() =>
+        Path.Combine(GetWallpaperStateDirectory(), PersistedAndroidExifMismatchPhotoKeysFileName);
 
     internal static string GetWallpaperStateDirectory()
     {

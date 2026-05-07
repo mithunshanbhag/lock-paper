@@ -10,11 +10,13 @@ public sealed class WallpaperRefreshServiceTests : IDisposable
     public WallpaperRefreshServiceTests()
     {
         DeletePersistedWallpaperPhotoKeyFile();
+        DeletePersistedAndroidExifMismatchPhotoKeysFile();
     }
 
     public void Dispose()
     {
         DeletePersistedWallpaperPhotoKeyFile();
+        DeletePersistedAndroidExifMismatchPhotoKeysFile();
     }
 
     #region PositiveCases
@@ -97,6 +99,46 @@ public sealed class WallpaperRefreshServiceTests : IDisposable
 
         Assert.Equal(WallpaperRefreshStatus.Succeeded, result.Status);
         Assert.Equal("forest.jpg", result.PhotoName);
+        Assert.Equal(lockScreenWallpaperService.AppliedLocalFilePath, result.AppliedWallpaperFilePath);
+    }
+
+    [Fact]
+    public async Task RefreshAsync_WhenAndroidExifMismatchPhotoWasPreviouslyRejected_ShouldSkipItBeforeSelection()
+    {
+        WritePersistedAndroidExifMismatchPhotoKeys("album-1:photo-1");
+
+        var lockScreenWallpaperService = new FakeLockScreenWallpaperService();
+        var service = new WallpaperRefreshService(
+            new FakeDeviceDisplayService(),
+            lockScreenWallpaperService,
+            new FakeOneDriveWallpaperSourceService
+            {
+                AlbumPhotos =
+                [
+                    new OneDriveWallpaperPhoto
+                    {
+                        Id = "photo-1",
+                        Name = "portrait-raw-but-rotated.jpg",
+                        PixelWidth = 1844,
+                        PixelHeight = 4000,
+                    },
+                    new OneDriveWallpaperPhoto
+                    {
+                        Id = "photo-2",
+                        Name = "confirmed-portrait.jpg",
+                        PixelWidth = 2250,
+                        PixelHeight = 4000,
+                    },
+                ],
+            },
+            new FakeRandomizer(),
+            new FakeWallpaperSelectionService(),
+            NullLogger<WallpaperRefreshService>.Instance);
+
+        var result = await service.RefreshAsync();
+
+        Assert.Equal(WallpaperRefreshStatus.Succeeded, result.Status);
+        Assert.Equal("confirmed-portrait.jpg", result.PhotoName);
         Assert.Equal(lockScreenWallpaperService.AppliedLocalFilePath, result.AppliedWallpaperFilePath);
     }
 
@@ -304,6 +346,15 @@ public sealed class WallpaperRefreshServiceTests : IDisposable
         File.WriteAllText(persistedWallpaperPhotoKeyFilePath, photoKey);
     }
 
+    private static void WritePersistedAndroidExifMismatchPhotoKeys(params string[] photoKeys)
+    {
+        var persistedAndroidExifMismatchPhotoKeysFilePath = GetPersistedAndroidExifMismatchPhotoKeysFilePath();
+        var wallpaperStateDirectory = Path.GetDirectoryName(persistedAndroidExifMismatchPhotoKeysFilePath);
+        Assert.False(string.IsNullOrWhiteSpace(wallpaperStateDirectory));
+        Directory.CreateDirectory(wallpaperStateDirectory!);
+        File.WriteAllLines(persistedAndroidExifMismatchPhotoKeysFilePath, photoKeys);
+    }
+
     private static void DeletePersistedWallpaperPhotoKeyFile()
     {
         var persistedWallpaperPhotoKeyFilePath = GetPersistedWallpaperPhotoKeyFilePath();
@@ -313,8 +364,20 @@ public sealed class WallpaperRefreshServiceTests : IDisposable
         }
     }
 
+    private static void DeletePersistedAndroidExifMismatchPhotoKeysFile()
+    {
+        var persistedAndroidExifMismatchPhotoKeysFilePath = GetPersistedAndroidExifMismatchPhotoKeysFilePath();
+        if (File.Exists(persistedAndroidExifMismatchPhotoKeysFilePath))
+        {
+            File.Delete(persistedAndroidExifMismatchPhotoKeysFilePath);
+        }
+    }
+
     private static string GetPersistedWallpaperPhotoKeyFilePath() =>
         WallpaperRefreshService.GetPersistedWallpaperPhotoKeyFilePath();
+
+    private static string GetPersistedAndroidExifMismatchPhotoKeysFilePath() =>
+        WallpaperRefreshService.GetPersistedAndroidExifMismatchPhotoKeysFilePath();
 
     private static string GetWallpaperStateDirectory() =>
         WallpaperRefreshService.GetWallpaperStateDirectory();
