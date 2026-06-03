@@ -1,7 +1,6 @@
 name: lock-paper-deploy
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -9,8 +8,23 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      environmentName:
+        type: environment
+        default: test
+        required: true
+        description: Target environment
+      runProvisioning:
+        type: boolean
+        default: false
+        required: true
+        description: Run bicep template provisioning?
 
 jobs:
   deploy:
     uses: ./.github/workflows/deploy-template.yml
     secrets: inherit
+    with:
+      environmentName: ${{ inputs.environmentName || 'test' }}
+      runProvisioning: ${{ inputs.runProvisioning || true }}

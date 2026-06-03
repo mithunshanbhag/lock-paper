@@ -2,17 +2,66 @@ name: lock-paper-deploy-template
 
 on:
   workflow_call:
+    inputs:
+      environmentName:
+        required: true
+        type: string
+      runProvisioning:
+        required: true
+        type: boolean
 
 env:
-  DOTNET_VERSION_10: "10.0.x"
-  ANDROID_TARGET_FRAMEWORK: "net10.0-android"
   ANDROID_RUNTIME_IDENTIFIER: "android-arm64"
+  ANDROID_TARGET_FRAMEWORK: "net10.0-android"
+  DOTNET_VERSION_10: "10.0.x"
   WINDOWS_TARGET_FRAMEWORK: "net10.0-windows10.0.19041.0"
+  RESOURCE_GROUP_NAME: lock-paper-rg
+  RESOURCE_LOCK_NAME: lock-paper-rg-delete-lock
+  # metadata will be stored, and not where the resource groups will be deployed.
+  # You can specify any location for `SUB_DEPLOYMENT_REGION`. It's the region where 
+  # the deployment metadata will be stored, and not where the resource groups will be deployed.
+  SUB_DEPLOYMENT_REGION: centralindia
 
 jobs:
+  provision:
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environmentName }}
+    timeout-minutes: 30
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4.1.1
+      - name: azure login
+        uses: azure/login@v2.2.0
+        with:
+          creds: ${{ secrets.SERVICEPRINCIPAL }}
+      # temporarily use az cli to upgrade bicep
+      # Context: https://github.com/Azure/bicep/issues/16681#issuecomment-2747568200
+      - name: upgrade bicep
+        uses: azure/CLI@v2.2.0
+        with:
+          inlineScript: az bicep upgrade
+      #
+      # section #1: provisioning the resources on Azure using bicep templates
+      #
+      # The first step is to create the resource group: `lock-paper-rg`.
+      # The below step can also be manually executed as follows:
+      # az deployment sub create --location {LOCATION} --template-file .\createResourceGroup.bicep
+      # Note: You can specify any location for `{LOCATION}`. It's the region where the deployment metadata will be stored, and not
+      # where the resource groups will be deployed.
+      # @TODO: The 'azure/arm-deploy' action will soon be deprecated. Move to the 'azure/bicep-deploy' github action.
+      - name: create resource group
+        uses: Azure/arm-deploy@v2
+        if: ${{ inputs.runProvisioning == true }}
+        with:
+          scope: subscription
+          region: ${{ env.SUB_DEPLOYMENT_REGION }}
+          template: ./infra/createResourceGroup.bicep
+          parameters: rgName=${{ env.RESOURCE_GROUP_NAME }} envName=${{ inputs.environmentName }} githubCommitSha=${{ github.sha }} githubWorkflowRunId=${{ github.run_id }} githubRef=${{ github.ref }}
+
+
   build-deploy-lock-paper-ui:
     runs-on: windows-2025-vs2026
-    environment: test
+    environment: ${{ inputs.environmentName }}
     timeout-minutes: 20
     steps:
       - name: checkout code
