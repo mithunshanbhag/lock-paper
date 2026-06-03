@@ -1,5 +1,10 @@
 name: lock-paper-deploy
 
+concurrency:
+  group: 'lock-paper-deploy'
+  cancel-in-progress: false
+  queue: max
+
 on:
   push:
     branches:

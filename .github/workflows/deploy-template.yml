@@ -81,7 +81,7 @@ jobs:
           scope: resourcegroup
           region: ${{ env.SUB_DEPLOYMENT_REGION }}
           resourceGroupName: ${{ env.RESOURCE_GROUP_NAME }}
-          deploymentMode: Incremental
+          deploymentMode: Complete
           deploymentName: deployment-run${{ github.run_number }}-attempt${{ github.run_attempt }}
           template: ./infra/createResources.bicep
           parameters: envName=${{ inputs.environmentName }} githubCommitSha=${{ github.sha }} githubWorkflowRunId=${{ github.run_id }} githubRef=${{ github.ref }}
