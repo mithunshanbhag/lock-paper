@@ -63,6 +63,7 @@ jobs:
     runs-on: windows-2025-vs2026
     environment: ${{ inputs.environmentName }}
     timeout-minutes: 20
+    needs: provision
     steps:
       - name: checkout code
         uses: actions/checkout@v6.0.2
