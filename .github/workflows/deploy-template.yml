@@ -57,7 +57,19 @@ jobs:
           region: ${{ env.SUB_DEPLOYMENT_REGION }}
           template: ./infra/createResourceGroup.bicep
           parameters: rgName=${{ env.RESOURCE_GROUP_NAME }} envName=${{ inputs.environmentName }} githubCommitSha=${{ github.sha }} githubWorkflowRunId=${{ github.run_id }} githubRef=${{ github.ref }}
-
+      # Delete resource lock if it exists on the resource group
+      - name: delete any existing resource lock
+        uses: azure/CLI@v2.2.0
+        if: ${{ inputs.runProvisioning == true }}
+        with:
+          inlineScript: |
+            az lock delete --name ${{ env.RESOURCE_LOCK_NAME }} --resource-group ${{ env.RESOURCE_GROUP_NAME }} || echo "No existing lock to delete"
+      # Add resource lock
+      - name: add resource lock
+        uses: azure/CLI@v2.2.0
+        if: ${{ inputs.runProvisioning == true }}
+        with:
+          inlineScript: az lock create --name ${{ env.RESOURCE_LOCK_NAME }} --lock-type CanNotDelete --resource-group ${{ env.RESOURCE_GROUP_NAME }}
 
   build-deploy-lock-paper-ui:
     runs-on: windows-2025-vs2026
